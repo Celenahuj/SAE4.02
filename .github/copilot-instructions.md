@@ -213,7 +213,7 @@ Pour une application professionnelle complète, considérer :
 ## Structure de projet recommandée
 
 ```
-projet-xr/
+SAE4.02/
 ├── index.html          # Page principale avec la scène A-Frame
 ├── js/
 │   ├── main.js        # Script principal et initialisation
