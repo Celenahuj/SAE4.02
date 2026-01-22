@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jeu de Pêche XR - SAE 4.02</title>
+
+  <!-- A-Frame -->
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+
+  <!-- GSAP pour les animations fluides -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="src/styles/overlay.css">
+</head>
+
+<body>
+  <!-- Interface HTML (Overlay) -->
+  <div id="game-ui">
+    <div id="score-display">Score: 0</div>
+    <div id="money-display">Argent: 0€</div>
+  </div>
+
+  <div id="target-fish">
+    <h2>🎣 Poisson cible</h2>
+    <p id="target-name">Sardine</p>
+  </div>
+
+  <div id="end-screen">
+    <div id="results"></div>
+  </div>
+
+  <!-- Scène A-Frame -->
+  <a-scene game-manager>
+    <!-- Système de caméra avec curseur pour les interactions souris/VR -->
+    <a-entity id="camera-rig" position="0 1.6 0">
+      <a-camera>
+        <a-cursor color="#FFFFFF" raycaster="objects: .collidable"></a-cursor>
+      </a-camera>
+    </a-entity>
+
+    <!-- Ciel bleu clair -->
+    <a-sky color="#B0E0F6"></a-sky>
+
+    <!-- Soleil visible avec spotlight -->
+    <a-entity id="sun-entity" position="0 30 -40">
+      <a-sphere radius="5" 
+        material="color: #ffeb3b; shader: flat; emissive: #ffeb3b; emissiveIntensity: 1">
+      </a-sphere>
+      <a-entity 
+        light="type: spot; color: #ffeb3b; intensity: 8; angle: 70; penumbra: 0.2; distance: 100; decay: 1.2; castShadow: true"
+        rotation="45 0 0">
+      </a-entity>
+    </a-entity>
+
+    <!-- Volume d'eau invisible (juste pour la détection) -->
+    <a-box id="water-volume" position="0 0 0" width="50" height="0.1" depth="50"
+      material="color: #1a7fbf; opacity: 0; transparent: true; visible: false" class="collidable">
+    </a-box>
+
+    <!-- Surface de l'eau avec vagues (plan animé) -->
+    <a-plane id="water-surface" position="0 0.05 0" rotation="-90 0 0" width="50" height="50"
+      material="color: #1a7fbf; opacity: 0.75; transparent: true; metalness: 0.95; roughness: 0.05; side: double"
+      class="collidable">
+    </a-plane>
+
+    <!-- Spotlight sous-marin principal (s'active quand submergé) -->
+    <a-entity id="underwater-light-1"
+      light="type: spot; color: #00aaff; intensity: 0; angle: 120; penumbra: 1; distance: 30" position="0 -2 0"
+      rotation="90 0 0">
+    </a-entity>
+
+    <a-entity id="underwater-light-2"
+      light="type: spot; color: #0088cc; intensity: 0; angle: 90; penumbra: 0.8; distance: 25" position="3 -2 3"
+      rotation="90 0 0">
+    </a-entity>
+
+    <a-entity id="underwater-light-3"
+      light="type: spot; color: #0099dd; intensity: 0; angle: 90; penumbra: 0.8; distance: 25" position="-3 -2 -3"
+      rotation="90 0 0">
+    </a-entity>
+
+    <!-- Spotlight jaune principal pour le soleil -->
+    <a-entity id="sun-spotlight"
+      light="type: spot; color: #ffeb99; intensity: 5; angle: 45; penumbra: 0.5; distance: 60; decay: 1.5; castShadow: true"
+      position="0 25 0" rotation="-90 0 0">
+    </a-entity>
+
+    <!-- Rayons de lumière sous-marins (god rays) -->
+    <a-entity id="sunray-1"
+      light="type: spot; color: #ffffcc; intensity: 3.5; angle: 15; penumbra: 0.8; distance: 50; decay: 1; castShadow: true"
+      position="0 20 0" rotation="-90 0 0">
+    </a-entity>
+
+    <a-entity id="sunray-2"
+      light="type: spot; color: #aaeeff; intensity: 2.5; angle: 12; penumbra: 0.9; distance: 45; decay: 1"
+      position="-4 20 -3" rotation="-85 20 0">
+    </a-entity>
+
+    <a-entity id="sunray-3"
+      light="type: spot; color: #aaeeff; intensity: 2.5; angle: 12; penumbra: 0.9; distance: 45; decay: 1"
+      position="4 20 -2" rotation="-85 -15 0">
+    </a-entity>
+
+    <a-entity id="sunray-4"
+      light="type: spot; color: #ccffff; intensity: 2; angle: 10; penumbra: 0.95; distance: 40; decay: 1"
+      position="-2 20 3" rotation="-80 10 0">
+    </a-entity>
+
+    <a-entity id="sunray-5"
+      light="type: spot; color: #ccffff; intensity: 2; angle: 10; penumbra: 0.95; distance: 40; decay: 1"
+      position="3 20 4" rotation="-80 -25 0">
+    </a-entity>
+
+    <!-- Lumière ambiante bleutée pour atmosphère sous-marine -->
+    <a-entity light="type: ambient; color: #4488aa; intensity: 0.6"></a-entity>
+
+    <!-- Lumière directionnelle douce venant du haut avec ombres -->
+    <a-entity light="type: directional; color: #ffffdd; intensity: 0.8; castShadow: true" position="5 10 3" rotation="-45 0 0"></a-entity>
+
+    <!-- Overlay bleu pour effet sous l'eau (initialement invisible) -->
+    <a-entity id="underwater-overlay" position="0 1.6 0">
+      <a-sphere radius="0.5" material="color: #0066aa; opacity: 0; transparent: true; side: back; shader: flat"
+        id="underwater-sphere">
+      </a-sphere>
+    </a-entity>
+
+  </a-scene>
+
+  <!-- Scripts de l'application -->
+  <script type="module" src="src/main.js"></script>
+  <script src="src/systems/game-manager.js"></script>
+  <script src="src/components/water-effect.js"></script>
+</body>
+
+</html>

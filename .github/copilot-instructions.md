@@ -212,26 +212,36 @@ Pour une application professionnelle complète, considérer :
 
 ## Structure de projet recommandée
 
-```
-SAE4.02/
-├── index.html          # Page principale avec la scène A-Frame
-├── js/
-│   ├── main.js        # Script principal et initialisation
-│   ├── fish-spawner.js # Génération et gestion des poissons
-│   ├── fishing-rod.js  # Logique de la canne à pêche et viseur
-│   ├── score-manager.js # Gestion du score et progression
-│   ├── ui-manager.js   # Tableau de bord et interface
-│   ├── interactions.js # Gestion des interactions (capture, vibrations)
-│   ├── animations.js   # Animations personnalisées (GSAP, Three.js)
-│   └── three-custom.js # Code Three.js personnalisé (optionnel)
-├── assets/
-│   ├── models/        # Modèles 3D (poissons, cannes à pêche)
-│   ├── textures/      # Textures et images
-│   └── sounds/        # Fichiers audio (effets sonores, musique)
-├── css/
-│   └── style.css      # Styles additionnels si nécessaire
-└── serveur.py         # Serveur local pour les tests
-```
+├── public/                  # :package: RESSOURCES STATIQUES (Accessibles via /)
+│   ├── models/              # Fichiers 3D (.glb uniquement)
+│   │   ├── machine.glb
+│   │   ├── tasse.glb
+│   │   └── decor/
+│   ├── sounds/              # Effets sonores (.mp3/.wav)
+│   └── icons/               # Assets 2D pour l'UI
+│
+├── src/                     # :brain: CODE SOURCE LOGIQUE
+│   ├── components/          # COMPOSANTS A-FRAME (Comportements)
+│   │   ├── ar-hit-test.js   # Gestion du curseur et placement
+│   │   ├── coffee-machine.js# Logique de la machine (click, timer)
+│   │   ├── customer.js      # IA des clients
+│   │   └── draggable.js     # Physique pour attraper les objets
+│   │
+│   ├── systems/             # SYSTÈMES GLOBAUX (Managers)
+│   │   └── game-manager.js  # Score, Argent, État du jeu (Menu/Jeu)
+│   │
+│   ├── styles/              # CSS
+│   │   └── overlay.css      # Style pour l'interface 2D (HTML Overlay)
+│   │
+│   └── main.js              # Point d'entrée (Imports des composants)
+│
+├── index.html               # :clapper: SCÈNE PRINCIPALE (Entités & Lumières)
+├── package.json             # Dépendances NPM
+└── .gitignore               # Fichiers ignorés (node_modules, .env)
+
+## :jigsaw: Pattern de Conception : ECS (Entity-Component-System)
+
+A-Frame fonctionne sur le principe ECS. On code par composition, pas en "Orienté Objet" classique.
 
 ## Points d'attention spécifiques
 
