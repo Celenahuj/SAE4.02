@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeu de Pêche XR</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="info">
+        <h1>Jeu de Pêche XR</h1>
+        <p>Appuyez sur le bouton pour entrer en mode XR</p>
+        <button id="xr-button" disabled>Chargement XR...</button>
+    </div>
+
+    <!-- Import map pour modules Three.js -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <!-- A-Frame -->
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+
+    <!-- Scripts modules -->
+    <script type="module" src="js/main.js"></script>
+    <script type="module" src="js/fish-spawner.js"></script>
+    <script type="module" src="js/fishing-rod.js"></script>
+    <script type="module" src="js/score-manager.js"></script>
+    <script type="module" src="js/interactions.js"></script>
+</body>
+</html>
