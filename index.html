@@ -5,118 +5,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cube XR - SAE 4.02</title>
-  <!-- Import de A-Frame -->
+
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-  <!-- Import de aframe-extras pour l'effet ocean -->
   <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@4.0.1/dist/aframe-physics-system.min.js"></script>
 
-  <!-- Composant personnalisé pour l'eau avec effet fluide Three.js -->
-  <script>
-    AFRAME.registerComponent('water-shader', {
-      schema: {
-        color: { type: 'color', default: '#0077be' },
-        opacity: { type: 'number', default: 0.6 },
-        speed: { type: 'number', default: 1.0 },
-        waveHeight: { type: 'number', default: 0.1 },
-        waveFrequency: { type: 'number', default: 2.0 }
-      },
+  
+  <script src="src/components/water-effect.js"></script>
+  <script src="src/components/grab-manager.js"></script>
 
-      init: function () {
-        const data = this.data;
-        const el = this.el;
-
-        // Créer une géométrie plane avec beaucoup de subdivisions pour les vagues
-        const geometry = new THREE.PlaneGeometry(10, 10, 64, 64);
-
-        // Matériau avec transparence
-        const material = new THREE.MeshStandardMaterial({
-          color: new THREE.Color(data.color),
-          transparent: true,
-          opacity: data.opacity,
-          side: THREE.DoubleSide,
-          metalness: 0.1,
-          roughness: 0.3
-        });
-
-        // Créer le mesh
-        this.mesh = new THREE.Mesh(geometry, material);
-        this.mesh.rotation.x = -Math.PI / 2; // Horizontal
-
-        // Ajouter à la scène
-        el.setObject3D('mesh', this.mesh);
-
-        // Stocker les positions initiales des vertices
-        this.originalPositions = geometry.attributes.position.array.slice();
-        this.time = 0;
-      },
-
-      tick: function (time, deltaTime) {
-        if (!this.mesh) return;
-
-        const data = this.data;
-        this.time += deltaTime * 0.001 * data.speed;
-
-        const positions = this.mesh.geometry.attributes.position.array;
-        const original = this.originalPositions;
-
-        // Animer chaque vertex pour créer l'effet de vagues
-        for (let i = 0; i < positions.length; i += 3) {
-          const x = original[i];
-          const y = original[i + 1];
-
-          // Créer des vagues sinusoïdales multiples
-          const wave1 = Math.sin(x * data.waveFrequency + this.time) * data.waveHeight;
-          const wave2 = Math.sin(y * data.waveFrequency * 0.8 + this.time * 1.2) * data.waveHeight * 0.5;
-          const wave3 = Math.sin((x + y) * data.waveFrequency * 0.5 + this.time * 0.8) * data.waveHeight * 0.3;
-
-          // Appliquer la hauteur de vague sur l'axe Z (qui devient Y après rotation)
-          positions[i + 2] = wave1 + wave2 + wave3;
-        }
-
-        this.mesh.geometry.attributes.position.needsUpdate = true;
-        this.mesh.geometry.computeVertexNormals();
-      }
-    });
-  </script>
-
-  <style>
-    #ar-button {
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 15px 30px;
-      font-size: 18px;
-      background: #e74c3c;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      z-index: 9999;
-    }
-
-    #ar-button:hover {
-      background: #c0392b;
-    }
-
-    #ar-overlay {
-      position: fixed;
-      bottom: 20px;
-      left: 0;
-      right: 0;
-      display: flex;
-      justify-content: center;
-      z-index: 9999;
-    }
-
-    /* Rendre la scène/canvas transparente afin que le passthrough du casque soit visible derrière */
-    html,
-    body,
-    a-scene,
-    canvas {
-      background: transparent !important;
-    }
-  </style>
+  <link rel="stylesheet" href="src/styles/style.css">
 </head>
 
 <body>
@@ -126,16 +24,20 @@
   </div>
 
   <!-- Scène A-Frame avec configuration WebXR native pour AR -->
-  <a-scene webxr="mode: immersive-ar; referenceSpaceType: local-floor; overlayElement: #ar-overlay;"
-    renderer="colorManagement: true; alpha: true; antialias: true; sortObjects: true" background="color: transparent">
+  <a-scene webxr="referenceSpaceType: local-floor; overlayElement: #ar-overlay;"
+    grab-manager
+    physics="gravity: 0"
+    renderer="colorManagement: true; alpha: true; antialias: true; sortTransparentObjects: true">
+
+    <!-- Assets must be inside a-scene -->
+    <a-assets>
+      <a-asset-item id="spear-model" src="assets/models/stylized_low-poly_spear.glb"></a-asset-item>
+      <a-asset-item id="low_poly_fish" src="assets/models/low_poly_fish.glb"></a-asset-item>
+    </a-assets>
 
     <!-- Ancre monde : tous les objets 3D sont enfants de cette entité pour rester fixes dans l'espace réel -->
     <a-entity id="world-anchor">
 
-      <!-- Cube rouge - visible dans le monde réel -->
-      <a-box position="0 1.5 -2" rotation="0 45 0" color="#e74c3c" width="0.5" height="0.5" depth="0.5"
-        animation="property: rotation; to: 0 405 0; dur: 5000; easing: linear; loop: true">
-      </a-box>
 
       <!-- EFFET D'EAU QUI MONTE avec shader Three.js (positionnée dans le monde, pas au niveau de la caméra) -->
       <a-entity id="water-surface" position="0 0 -2"
@@ -172,65 +74,95 @@
       <!-- Lumière bleutée sous l'eau -->
       <a-light type="point" color="#0088ff" intensity="0.5" position="0 0.5 -2"></a-light>
 
-    </a-entity>
+      <!-- Spear model (replace the blue cube) - grabbable -->
+      <a-entity id="spear" class="fish" position="0 1.45 -0.6" rotation="0 90 0" 
+                geometry="primitive: box; width: 0.05; height: 0.05; depth: 0.6" 
+                material="color: #ff0000; opacity: 0.3; transparent: true"
+                gltf-model="#spear-model"
+                scale="0.5 0.5 0.5">
+      </a-entity>
 
-    <!-- Caméra XR (sans rig parent pour éviter les décalages en AR) -->
-    <a-camera position="0 1.6 0"></a-camera>
+      <!-- Fish cube to catch -->
+            <a-entity class="fish-target" position="-1.4 1.0 -1.2" 
+              gltf-model="#low_poly_fish"
+             scale="0.08 0.08 0.08"
+             rotation="0 45 0"
+             animation="property: position; to: -1.2 1.2 -1.5; dur: 3000; easing: easeInOutSine; loop: true; dir: alternate"
+             animation__rotate="property: rotation; to: 0 90 0; dur: 3000; easing: easeInOutSine; loop: true; dir: alternate">
+      </a-entity>
+
+      <!-- Fish 2 -->
+      <a-entity class="fish-target" position="1.4 2.2 -2.4" 
+             gltf-model="#low_poly_fish"
+             scale="0.08 0.08 0.08"
+             rotation="0 -60 0"
+             animation="property: position; to: 1.2 1.9 -2.6; dur: 3500; easing: easeInOutSine; loop: true; dir: alternate"
+             animation__rotate="property: rotation; to: 0 -120 0; dur: 3500; easing: easeInOutSine; loop: true; dir: alternate">
+      </a-entity>
+
+      <!-- Fish 3 -->
+      <a-entity class="fish-target" position="0.2 1.6 -3.1" 
+             gltf-model="#low_poly_fish"
+             scale="0.08 0.08 0.08"
+             rotation="0 0 0"
+             animation="property: position; to: -0.1 1.7 -3.3; dur: 4000; easing: easeInOutSine; loop: true; dir: alternate"
+             animation__rotate="property: rotation; to: 0 60 0; dur: 4000; easing: easeInOutSine; loop: true; dir: alternate">
+      </a-entity>
+
+      <!-- Fish 4 -->
+      <a-entity class="fish-target" position="-1.3 2.3 -2.7" 
+             gltf-model="#low_poly_fish"
+             scale="0.08 0.08 0.08"
+             rotation="0 30 0"
+             animation="property: position; to: -1.1 2.0 -2.9; dur: 3200; easing: easeInOutSine; loop: true; dir: alternate"
+             animation__rotate="property: rotation; to: 0 -30 0; dur: 3200; easing: easeInOutSine; loop: true; dir: alternate">
+      </a-entity>
+
+      <!-- Fish 5 -->
+      <a-entity class="fish-target" position="1.3 1.1 -0.9" 
+             gltf-model="#low_poly_fish"
+             scale="0.08 0.08 0.08"
+             rotation="0 -90 0"
+             animation="property: position; to: 1.5 1.4 -1.1; dur: 2800; easing: easeInOutSine; loop: true; dir: alternate"
+             animation__rotate="property: rotation; to: 0 -150 0; dur: 2800; easing: easeInOutSine; loop: true; dir: alternate">
+      </a-entity>
+
+      <!-- Fish 6 -->
+      <a-entity class="fish-target" position="-0.7 1.9 -1.0" 
+             gltf-model="#low_poly_fish"
+             scale="0.08 0.08 0.08"
+             rotation="0 75 0"
+             animation="property: position; to: -0.5 1.6 -1.2; dur: 3100; easing: easeInOutSine; loop: true; dir: alternate"
+             animation__rotate="property: rotation; to: 0 135 0; dur: 3100; easing: easeInOutSine; loop: true; dir: alternate">
+      </a-entity>
+
+      <!-- Fish 7 -->
+      <a-entity class="fish-target" position="0.9 1.3 -2.8" 
+             gltf-model="#low_poly_fish"
+             scale="0.08 0.08 0.08"
+             rotation="0 -45 0"
+             animation="property: position; to: 0.7 1.6 -3.0; dur: 3600; easing: easeInOutSine; loop: true; dir: alternate"
+             animation__rotate="property: rotation; to: 0 -105 0; dur: 3600; easing: easeInOutSine; loop: true; dir: alternate">
+      </a-entity>
+
+      <!-- Fish 8 -->
+      <a-entity class="fish-target" position="-0.4 1.4 -2.0" 
+             gltf-model="#low_poly_fish"
+             scale="0.08 0.08 0.08"
+             rotation="0 15 0"
+             animation="property: position; to: -0.6 1.7 -2.2; dur: 2900; easing: easeInOutSine; loop: true; dir: alternate"
+             animation__rotate="property: rotation; to: 0 75 0; dur: 2900; easing: easeInOutSine; loop: true; dir: alternate">
+      </a-entity>
+
+      </a-entity>
+
+    <!-- VR Hands -->
+    <a-entity id="leftHand" hand-controls="hand: left; handModelStyle: lowPoly; color: #15ACCF"></a-entity>
+    <a-entity id="rightHand" hand-controls="hand: right; handModelStyle: lowPoly; color: #15ACCF"></a-entity>
+
   </a-scene>
 
-  <script>
-    // Bouton pour lancer le mode AR avec la méthode native A-Frame
-    const arButton = document.getElementById('ar-button');
-    const scene = document.querySelector('a-scene');
-
-    arButton.addEventListener('click', async function () {
-      // Vérifier si WebXR AR est supporté
-      if (!navigator.xr) {
-        alert('WebXR non supporté sur ce navigateur');
-        return;
-      }
-
-      const isArSupported = await navigator.xr.isSessionSupported('immersive-ar');
-
-      if (!isArSupported) {
-        alert('Mode AR non supporté. Utilisez un Quest 3 ou un appareil compatible.');
-        return;
-      }
-
-      try {
-        // Utiliser la méthode native d'A-Frame pour entrer en AR
-        // Cela gère correctement le reference space et l'ancrage spatial
-        scene.enterAR();
-        arButton.style.display = 'none';
-
-        // Écouter la sortie du mode AR
-        scene.addEventListener('exit-vr', function onExitAR() {
-          arButton.style.display = 'block';
-          scene.removeEventListener('exit-vr', onExitAR);
-        });
-
-        console.log('Mode AR activé - passthrough actif !');
-
-      } catch (err) {
-        console.error('Erreur lors du lancement AR:', err);
-        alert('Erreur: ' + err.message);
-      }
-    });
-
-    // Cacher le bouton si AR non supporté
-    scene.addEventListener('loaded', async function () {
-      if (navigator.xr) {
-        const isArSupported = await navigator.xr.isSessionSupported('immersive-ar');
-        if (!isArSupported) {
-          arButton.textContent = 'AR non disponible';
-          arButton.disabled = true;
-        }
-      } else {
-        arButton.textContent = 'WebXR non supporté';
-        arButton.disabled = true;
-      }
-    });
-  </script>
+  <script src="src/systems/game-manager.js"></script>
 </body>
 
 </html>
