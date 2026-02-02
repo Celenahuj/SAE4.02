@@ -8,7 +8,100 @@
 
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
+  <!-- Compatibility shim: recreate minimal THREE.Geometry for older addons that expect it -->
+  <script>
+    (function () {
+      try {
+        if (window.AFRAME && AFRAME.THREE && !AFRAME.THREE.Geometry) {
+          const THREE = AFRAME.THREE;
+          // ES6 class extends BufferGeometry to avoid calling super as a function
+          class Geometry extends THREE.BufferGeometry {
+            constructor() {
+              super();
+              this.vertices = [];
+            }
+
+            static fromBufferGeometry(bufferGeometry) {
+              const g = new Geometry();
+              const pos = bufferGeometry.attributes && bufferGeometry.attributes.position;
+              if (pos && pos.array) {
+                const a = pos.array;
+                for (let i = 0; i < a.length; i += 3) {
+                  g.vertices.push(new THREE.Vector3(a[i], a[i + 1], a[i + 2]));
+                }
+              }
+              return g;
+            }
+            // instance method expected by older plugins: tmp.fromBufferGeometry(...)
+            fromBufferGeometry(bufferGeometry) {
+              this.vertices.length = 0;
+              const pos = bufferGeometry.attributes && bufferGeometry.attributes.position;
+              if (pos && pos.array) {
+                const a = pos.array;
+                for (let i = 0; i < a.length; i += 3) {
+                  this.vertices.push(new THREE.Vector3(a[i], a[i + 1], a[i + 2]));
+                }
+              }
+              return this;
+            }
+          }
+          THREE.Geometry = Geometry;
+          console.log('🔧 THREE.Geometry shim installed (class)');
+        }
+      } catch (e) {
+        console.warn('Geometry shim failed', e);
+      }
+    })();
+  </script>
+  <!-- Box3.getCenter compatibility shim: ensure a Vector3 is created if target missing -->
+  <script>
+    (function () {
+      try {
+        if (window.AFRAME && AFRAME.THREE && AFRAME.THREE.Box3) {
+          const THREE = AFRAME.THREE;
+          const proto = THREE.Box3.prototype;
+          if (proto && typeof proto.getCenter === 'function') {
+            const origGetCenter = proto.getCenter;
+            proto.getCenter = function (target) {
+              if (target === undefined || target === null) target = new THREE.Vector3();
+              return origGetCenter.call(this, target);
+            };
+            console.log('🔧 Box3.getCenter shim applied');
+          }
+        }
+      } catch (e) {
+        console.warn('Box3.getCenter shim failed', e);
+      }
+    })();
+  </script>
   <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@4.0.1/dist/aframe-physics-system.min.js"></script>
+
+  <!-- Quaternion compatibility shim: provide `inverse()` used by older physics code -->
+  <script>
+    (function () {
+      try {
+        // THREE.Quaternion: alias inverse -> invert()
+        if (window.AFRAME && AFRAME.THREE && AFRAME.THREE.Quaternion) {
+          const Q = AFRAME.THREE.Quaternion.prototype;
+          if (!Q.inverse) {
+            Q.inverse = Q.invert || function () { return this.conjugate(); };
+            console.log('🔧 THREE.Quaternion.inverse shim applied');
+          }
+        }
+
+        // CANNON.Quaternion: provide inverse() returning a new quaternion
+        if (window.CANNON && CANNON.Quaternion && !CANNON.Quaternion.prototype.inverse) {
+          CANNON.Quaternion.prototype.inverse = function () {
+            // return conjugate (for unit quaternions inverse == conjugate)
+            return new CANNON.Quaternion(-this.x, -this.y, -this.z, this.w);
+          };
+          console.log('🔧 CANNON.Quaternion.inverse shim applied');
+        }
+      } catch (e) {
+        console.warn('Quaternion inverse shim failed', e);
+      }
+    })();
+  </script>
 
   
   <script src="src/components/water-effect.js"></script>
@@ -27,44 +120,56 @@
   <a-scene webxr="referenceSpaceType: local-floor; overlayElement: #ar-overlay;"
     grab-manager
     physics="gravity: 0"
+    fog="type: exponential; color: #001a33; density: 0.02"
     renderer="colorManagement: true; alpha: true; antialias: true; sortTransparentObjects: true">
 
     <!-- Assets must be inside a-scene -->
     <a-assets>
       <a-asset-item id="spear-model" src="assets/models/stylized_low-poly_spear.glb"></a-asset-item>
       <a-asset-item id="low_poly_fish" src="assets/models/low_poly_fish.glb"></a-asset-item>
+      <!-- Additional fish models for variety -->
+      <a-asset-item id="fish_fish" src="assets/models/Fish.glb"></a-asset-item>
+      <a-asset-item id="fish_1" src="assets/models/Fish_1.glb"></a-asset-item>
+      <a-asset-item id="fish_2" src="assets/models/Fish_2.glb"></a-asset-item>
+      <a-asset-item id="fish_bubbles" src="assets/models/Fish_Bubbles.glb"></a-asset-item>
+      <!-- Goldfish asset so one target can be adjusted individually -->
+      <a-asset-item id="goldfish" src="assets/models/Goldfish.glb"></a-asset-item>
+      <a-asset-item id="piranha" src="assets/models/Piranha.glb"></a-asset-item>
     </a-assets>
 
     <!-- Ancre monde : tous les objets 3D sont enfants de cette entité pour rester fixes dans l'espace réel -->
     <a-entity id="world-anchor">
+
+    <!-- Ground for physics collisions -->
+    <a-entity id="ground" geometry="primitive: plane; width: 20; height: 20" rotation="-90 0 0" position="0 0 0" visible="false" static-body></a-entity>
 
 
       <!-- EFFET D'EAU QUI MONTE avec shader Three.js (positionnée dans le monde, pas au niveau de la caméra) -->
       <a-entity id="water-surface" position="0 0 -2"
         animation="property: position; from: 0 0 -2; to: 0 2.5 -2; dur: 10000; easing: easeInOutQuad">
 
-        <!-- Surface d'eau avec effet de vagues fluides -->
+        <!-- Surface d'eau avec effet de vagues fluides (couche principale bleu profond) -->
         <a-entity id="water-fluid"
-          water-shader="color: #0088cc; opacity: 0.65; speed: 1.5; waveHeight: 0.08; waveFrequency: 1.5">
+          water-shader="color: #004b7f; opacity: 0.75; speed: 1.5; waveHeight: 0.08; waveFrequency: 1.5">
         </a-entity>
 
         <!-- Deuxième couche d'eau plus claire pour la profondeur -->
         <a-entity position="0 -0.05 0"
-          water-shader="color: #00aaff; opacity: 0.3; speed: 0.8; waveHeight: 0.05; waveFrequency: 2.0">
+          water-shader="color: #006fb3; opacity: 0.35; speed: 0.8; waveHeight: 0.05; waveFrequency: 2.0">
         </a-entity>
       </a-entity>
 
       <!-- Particules de bulles qui montent avec l'eau -->
       <a-entity id="bubbles" position="0 0 -2">
-        <a-sphere position="-0.5 0.2 0" radius="0.05" color="#ffffff" opacity="0.5"
+        <a-sphere position="-0.5 0.2 0" radius="0.05" color="#88e0ff" opacity="0.45"
           animation="property: position; from: -0.5 0.2 0; to: -0.5 2.7 0; dur: 8000; easing: linear"></a-sphere>
-        <a-sphere position="0.3 0.1 -0.5" radius="0.03" color="#ffffff" opacity="0.4"
+        <a-sphere position="0.3 0.1 -0.5" radius="0.03" color="#88e0ff" opacity="0.35"
           animation="property: position; from: 0.3 0.1 -0.5; to: 0.3 2.6 -0.5; dur: 7000; easing: linear; delay: 500"></a-sphere>
-        <a-sphere position="0 0.3 0.3" radius="0.04" color="#ffffff" opacity="0.5"
+        <a-sphere position="0 0.3 0.3" radius="0.04" color="#aeeeff" opacity="0.45"
           animation="property: position; from: 0 0.3 0.3; to: 0 2.8 0.3; dur: 9000; easing: linear; delay: 1000"></a-sphere>
-        <a-sphere position="0.7 0.15 -0.2" radius="0.035" color="#ffffff" opacity="0.4"
+        <a-sphere position="0.7 0.15 -0.2" radius="0.035" color="#88e0ff" opacity="0.35"
           animation="property: position; from: 0.7 0.15 -0.2; to: 0.7 2.65 -0.2; dur: 7500; easing: linear; delay: 300"></a-sphere>
-        <a-sphere position="-0.3 0.25 0.5" radius="0.045" color="#ffffff" opacity="0.5"
+        <a-sphere position="-0.3 0.25 0.5" radius="0.045" color="#aeeeff" opacity="0.45"
           animation="property: position; from: -0.3 0.25 0.5; to: -0.3 2.75 0.5; dur: 8500; easing: linear; delay: 700"></a-sphere>
       </a-entity>
 
@@ -75,81 +180,93 @@
       <a-light type="point" color="#0088ff" intensity="0.5" position="0 0.5 -2"></a-light>
 
       <!-- Spear model (replace the blue cube) - grabbable -->
-      <a-entity id="spear" class="fish" position="0 1.45 -0.6" rotation="0 90 0" 
-                geometry="primitive: box; width: 0.05; height: 0.05; depth: 0.6" 
-                material="color: #ff0000; opacity: 0.3; transparent: true"
-                gltf-model="#spear-model"
-                scale="0.5 0.5 0.5">
+      <a-entity id="spear" weapon position="0 1.45 -0.6" rotation="0 90 0" 
+            class="weapon"
+            geometry="primitive: box; width: 0.05; height: 0.05; depth: 0.6" 
+            material="color: #ff0000; opacity: 0.3; transparent: true"
+            gltf-model="#spear-model"
+            scale="0.5 0.5 0.5"
+            dynamic-body="mass:1">
       </a-entity>
 
       <!-- Fish cube to catch -->
-            <a-entity class="fish-target" position="-1.4 1.0 -1.2" 
-              gltf-model="#low_poly_fish"
-             scale="0.08 0.08 0.08"
-             rotation="0 45 0"
+                  <a-entity class="fish-target" position="-1.4 1.0 -1.2" 
+                    gltf-model="#low_poly_fish"
+                   scale="0.1 0.1 0.1"
+                   rotation="0 45 0"
              animation="property: position; to: -1.2 1.2 -1.5; dur: 3000; easing: easeInOutSine; loop: true; dir: alternate"
              animation__rotate="property: rotation; to: 0 90 0; dur: 3000; easing: easeInOutSine; loop: true; dir: alternate">
       </a-entity>
 
       <!-- Fish 2 -->
-      <a-entity class="fish-target" position="1.4 2.2 -2.4" 
-             gltf-model="#low_poly_fish"
-             scale="0.08 0.08 0.08"
-             rotation="0 -60 0"
+            <a-entity class="fish-target" position="1.4 2.2 -2.4" 
+              gltf-model="#fish_fish"
+              scale="0.1 0.1 0.1"
+              rotation="0 -60 0"
              animation="property: position; to: 1.2 1.9 -2.6; dur: 3500; easing: easeInOutSine; loop: true; dir: alternate"
              animation__rotate="property: rotation; to: 0 -120 0; dur: 3500; easing: easeInOutSine; loop: true; dir: alternate">
       </a-entity>
 
       <!-- Fish 3 -->
-      <a-entity class="fish-target" position="0.2 1.6 -3.1" 
-             gltf-model="#low_poly_fish"
-             scale="0.08 0.08 0.08"
-             rotation="0 0 0"
+            <a-entity class="fish-target" position="0.2 1.6 -3.1" 
+              gltf-model="#fish_1"
+              scale="0.01 0.01 0.01"
+              rotation="0 0 0"
              animation="property: position; to: -0.1 1.7 -3.3; dur: 4000; easing: easeInOutSine; loop: true; dir: alternate"
              animation__rotate="property: rotation; to: 0 60 0; dur: 4000; easing: easeInOutSine; loop: true; dir: alternate">
       </a-entity>
 
       <!-- Fish 4 -->
-      <a-entity class="fish-target" position="-1.3 2.3 -2.7" 
-             gltf-model="#low_poly_fish"
-             scale="0.08 0.08 0.08"
-             rotation="0 30 0"
+            <a-entity class="fish-target" position="-1.3 2.3 -2.7" 
+              gltf-model="#fish_bubbles"
+              scale="0.1 0.1 0.01"
+              rotation="0 30 0"
              animation="property: position; to: -1.1 2.0 -2.9; dur: 3200; easing: easeInOutSine; loop: true; dir: alternate"
              animation__rotate="property: rotation; to: 0 -30 0; dur: 3200; easing: easeInOutSine; loop: true; dir: alternate">
       </a-entity>
 
-      <!-- Fish 5 -->
-      <a-entity class="fish-target" position="1.3 1.1 -0.9" 
-             gltf-model="#low_poly_fish"
-             scale="0.08 0.08 0.08"
-             rotation="0 -90 0"
-             animation="property: position; to: 1.5 1.4 -1.1; dur: 2800; easing: easeInOutSine; loop: true; dir: alternate"
-             animation__rotate="property: rotation; to: 0 -150 0; dur: 2800; easing: easeInOutSine; loop: true; dir: alternate">
-      </a-entity>
+            <!-- Fish 5 (goldfish) - id added so you can adjust its size individually -->
+                      <a-entity id="goldfish-target" class="fish-target" position="1.3 1.1 -0.9" 
+                        gltf-model="#goldfish"
+                        scale="0.01 0.01 0.01"
+              rotation="0 -90 0"
+              animation="property: position; to: 1.5 1.4 -1.1; dur: 2800; easing: easeInOutSine; loop: true; dir: alternate"
+              animation__rotate="property: rotation; to: 0 -150 0; dur: 2800; easing: easeInOutSine; loop: true; dir: alternate">
+            </a-entity>
 
       <!-- Fish 6 -->
-      <a-entity class="fish-target" position="-0.7 1.9 -1.0" 
-             gltf-model="#low_poly_fish"
-             scale="0.08 0.08 0.08"
-             rotation="0 75 0"
+            <a-entity class="fish-target" position="-0.7 1.9 -1.0" 
+              gltf-model="#fish_2"
+              scale="0.1 0.1 0.1"
+              rotation="0 75 0"
              animation="property: position; to: -0.5 1.6 -1.2; dur: 3100; easing: easeInOutSine; loop: true; dir: alternate"
              animation__rotate="property: rotation; to: 0 135 0; dur: 3100; easing: easeInOutSine; loop: true; dir: alternate">
       </a-entity>
 
+            <!-- Piranha target (adjustable) -->
+            <a-entity id="piranha-target" class="fish-target" position="0.6 1.2 -1.6"
+            gltf-model="#piranha"
+            normalize-model-scale="target: 0.01"
+            scale="0.1 0.1 0.1"
+            rotation="0 20 0"
+            animation="property: position; to: 0.5 1.4 -1.8; dur: 3200; easing: easeInOutSine; loop: true; dir: alternate"
+            animation__rotate="property: rotation; to: 0 60 0; dur: 3200; easing: easeInOutSine; loop: true; dir: alternate">
+            </a-entity>
+
       <!-- Fish 7 -->
-      <a-entity class="fish-target" position="0.9 1.3 -2.8" 
-             gltf-model="#low_poly_fish"
-             scale="0.08 0.08 0.08"
-             rotation="0 -45 0"
+            <a-entity class="fish-target" position="0.9 1.3 -2.8" 
+              gltf-model="#low_poly_fish"
+              scale="0.1 0.1 0.1"
+              rotation="0 -45 0"
              animation="property: position; to: 0.7 1.6 -3.0; dur: 3600; easing: easeInOutSine; loop: true; dir: alternate"
              animation__rotate="property: rotation; to: 0 -105 0; dur: 3600; easing: easeInOutSine; loop: true; dir: alternate">
       </a-entity>
 
       <!-- Fish 8 -->
-      <a-entity class="fish-target" position="-0.4 1.4 -2.0" 
-             gltf-model="#low_poly_fish"
-             scale="0.08 0.08 0.08"
-             rotation="0 15 0"
+            <a-entity class="fish-target" position="-0.4 1.4 -2.0" 
+              gltf-model="#fish_fish"
+              scale="0.1 0.1 0.1"
+              rotation="0 15 0"
              animation="property: position; to: -0.6 1.7 -2.2; dur: 2900; easing: easeInOutSine; loop: true; dir: alternate"
              animation__rotate="property: rotation; to: 0 75 0; dur: 2900; easing: easeInOutSine; loop: true; dir: alternate">
       </a-entity>
