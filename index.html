@@ -5,109 +5,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cube XR - SAE 4.02</title>
+  <link rel="stylesheet" href="src/styles/style.css">
 
+  <!-- Importation d'A-Frame et des extensions nécessaires -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
-  <!-- Compatibility shim: recreate minimal THREE.Geometry for older addons that expect it -->
-  <script>
-    (function () {
-      try {
-        if (window.AFRAME && AFRAME.THREE && !AFRAME.THREE.Geometry) {
-          const THREE = AFRAME.THREE;
-          // ES6 class extends BufferGeometry to avoid calling super as a function
-          class Geometry extends THREE.BufferGeometry {
-            constructor() {
-              super();
-              this.vertices = [];
-            }
-
-            static fromBufferGeometry(bufferGeometry) {
-              const g = new Geometry();
-              const pos = bufferGeometry.attributes && bufferGeometry.attributes.position;
-              if (pos && pos.array) {
-                const a = pos.array;
-                for (let i = 0; i < a.length; i += 3) {
-                  g.vertices.push(new THREE.Vector3(a[i], a[i + 1], a[i + 2]));
-                }
-              }
-              return g;
-            }
-            // instance method expected by older plugins: tmp.fromBufferGeometry(...)
-            fromBufferGeometry(bufferGeometry) {
-              this.vertices.length = 0;
-              const pos = bufferGeometry.attributes && bufferGeometry.attributes.position;
-              if (pos && pos.array) {
-                const a = pos.array;
-                for (let i = 0; i < a.length; i += 3) {
-                  this.vertices.push(new THREE.Vector3(a[i], a[i + 1], a[i + 2]));
-                }
-              }
-              return this;
-            }
-          }
-          THREE.Geometry = Geometry;
-          console.log('🔧 THREE.Geometry shim installed (class)');
-        }
-      } catch (e) {
-        console.warn('Geometry shim failed', e);
-      }
-    })();
-  </script>
-  <!-- Box3.getCenter compatibility shim: ensure a Vector3 is created if target missing -->
-  <script>
-    (function () {
-      try {
-        if (window.AFRAME && AFRAME.THREE && AFRAME.THREE.Box3) {
-          const THREE = AFRAME.THREE;
-          const proto = THREE.Box3.prototype;
-          if (proto && typeof proto.getCenter === 'function') {
-            const origGetCenter = proto.getCenter;
-            proto.getCenter = function (target) {
-              if (target === undefined || target === null) target = new THREE.Vector3();
-              return origGetCenter.call(this, target);
-            };
-            console.log('🔧 Box3.getCenter shim applied');
-          }
-        }
-      } catch (e) {
-        console.warn('Box3.getCenter shim failed', e);
-      }
-    })();
-  </script>
   <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@4.0.1/dist/aframe-physics-system.min.js"></script>
 
-  <!-- Quaternion compatibility shim: provide `inverse()` used by older physics code -->
-  <script>
-    (function () {
-      try {
-        // THREE.Quaternion: alias inverse -> invert()
-        if (window.AFRAME && AFRAME.THREE && AFRAME.THREE.Quaternion) {
-          const Q = AFRAME.THREE.Quaternion.prototype;
-          if (!Q.inverse) {
-            Q.inverse = Q.invert || function () { return this.conjugate(); };
-            console.log('🔧 THREE.Quaternion.inverse shim applied');
-          }
-        }
 
-        // CANNON.Quaternion: provide inverse() returning a new quaternion
-        if (window.CANNON && CANNON.Quaternion && !CANNON.Quaternion.prototype.inverse) {
-          CANNON.Quaternion.prototype.inverse = function () {
-            // return conjugate (for unit quaternions inverse == conjugate)
-            return new CANNON.Quaternion(-this.x, -this.y, -this.z, this.w);
-          };
-          console.log('🔧 CANNON.Quaternion.inverse shim applied');
-        }
-      } catch (e) {
-        console.warn('Quaternion inverse shim failed', e);
-      }
-    })();
-  </script>
-
-  
+  <!-- Importation des composants -->
+  <script src="src/utils/compatibility-shims.js"></script>
   <script src="src/components/water-effect.js"></script>
   <script src="src/components/grab-manager.js"></script>
-
-  <link rel="stylesheet" href="src/styles/style.css">
+  <script src="src/components/fish-spawner.js"></script>
+  <script src="src/components/room-detection.js"></script>
 </head>
 
 <body>
@@ -117,7 +28,7 @@
   </div>
 
   <!-- Scène A-Frame avec configuration WebXR native pour AR -->
-  <a-scene webxr="referenceSpaceType: local-floor; overlayElement: #ar-overlay;"
+  <a-scene webxr="referenceSpaceType: local-floor; overlayElement: #ar-overlay; requiredFeatures: local-floor, hit-test, plane-detection, mesh-detection; optionalFeatures: depth-sensing, anchors;" room-detection
     grab-manager
     physics="gravity: 0"
     fog="type: exponential; color: #001a33; density: 0.02"
