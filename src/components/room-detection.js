@@ -46,6 +46,7 @@ AFRAME.registerComponent('room-detection', {
     // Sessions XR
     this.xrSession = null;
     this.xrRefSpace = null;
+    this.xrSessionRequested = false;
 
     // Créer l'interface de scan
     this.createScanUI();
@@ -55,6 +56,292 @@ AFRAME.registerComponent('room-detection', {
     this.el.sceneEl.addEventListener('exit-vr', this.onExitXR.bind(this));
 
     console.log('🏠 Room detection initialisé - Approche du professeur Benoit Crespin');
+
+    // MODE TEST: Si pas en VR après 8 secondes, émettre des données de test
+    setTimeout(() => {
+      if (!this.xrSession && !this.xrSessionRequested && !this.scanComplete && !this.isScanning) {
+        console.warn('⚠️ Pas de session XR détectée - émission de données de test pour le développement PC');
+        this.emitTestRoomData();
+      }
+    }, 8000);
+  },
+
+  emitTestRoomData: function () {
+    console.log('🧪 MODE TEST: Émission de room-scanned avec données simulées');
+    
+    this.scanComplete = true;
+    
+    // Données de test pour le développement sur PC
+    const testData = {
+      bounds: {
+        minX: -3, maxX: 3,
+        minY: 0, maxY: 2.5,
+        minZ: -4, maxZ: 0
+      },
+      width: 6,
+      depth: 4,
+      height: 2.5,
+      centerX: 0,
+      centerZ: -2,
+      floorY: 0,
+      floorPlanes: [],
+      wallPlanes: [],
+      obstaclePlanes: [],
+      ceilingPlanes: [],
+      allPlanes: new Map()
+    };
+    
+    console.log('📐 Dimensions de test:');
+    console.log(`   - Largeur: ${testData.width}m`);
+    console.log(`   - Profondeur: ${testData.depth}m`);
+    console.log(`   - Hauteur: ${testData.height}m`);
+    console.log(`   - Centre: (${testData.centerX}, ${testData.centerZ})`);
+    
+    // Créer une boîte de visualisation pour le mode test
+    this.createTestBoundingBox(testData);
+    
+    this.el.sceneEl.emit('room-scanned', testData);
+  },
+
+  createTestBoundingBox: function(data) {
+    // Créer une boîte fil-de-fer pour visualiser la zone de spawn
+    this.createSpawnZoneBoundingBox(data);
+  },
+
+  createSpawnZoneBoundingBox: function(data) {
+    // Supprimer uniquement l'ancienne boîte de spawn si elle existe (ne PAS nettoyer les plane visuals)
+    const oldBox = document.querySelector('#spawn-zone-bounds');
+    if (oldBox) {
+      oldBox.parentNode.removeChild(oldBox);
+    }
+
+    // Si on a le polygone du sol, calculer les VRAIS bounds à partir des vertices transformés
+    if (data.floorPolygon && data.floorPolygon.length >= 3 && data.floorPose) {
+      this.createBoxFromPolygon(data);
+    } else {
+      // Sinon, utiliser une box standard (mode test)
+      this.createStandardBox(data);
+    }
+  },
+  
+  createBoxFromPolygon: function(data) {
+    const polygon = data.floorPolygon;
+    const pose = data.floorPose;
+    const height = data.height;
+    
+    // Transformer tous les vertices avec la matrice du sol
+    const matrix = new THREE.Matrix4();
+    matrix.fromArray(pose.transform.matrix);
+    
+    // Extraire la position et rotation de la matrice
+    const position = new THREE.Vector3();
+    const quaternion = new THREE.Quaternion();
+    const scale = new THREE.Vector3();
+    matrix.decompose(position, quaternion, scale);
+    
+    // Convertir quaternion en angles Euler
+    const euler = new THREE.Euler();
+    euler.setFromQuaternion(quaternion);
+    const rotationY = THREE.MathUtils.radToDeg(euler.y);
+    
+    // Calculer les bounds dans l'espace LOCAL du plan (avant transformation)
+    let localMinX = Infinity, localMaxX = -Infinity;
+    let localMinZ = Infinity, localMaxZ = -Infinity;
+    
+    polygon.forEach(v => {
+      localMinX = Math.min(localMinX, v.x);
+      localMaxX = Math.max(localMaxX, v.x);
+      localMinZ = Math.min(localMinZ, v.z);
+      localMaxZ = Math.max(localMaxZ, v.z);
+    });
+    
+    // Dimensions dans l'espace local
+    const width = localMaxX - localMinX;
+    const depth = localMaxZ - localMinZ;
+    const localCenterX = (localMinX + localMaxX) / 2;
+    const localCenterZ = (localMinZ + localMaxZ) / 2;
+    
+    // Transformer le centre local en monde
+    const centerLocal = new THREE.Vector3(localCenterX, 0, localCenterZ);
+    centerLocal.applyMatrix4(matrix);
+    
+    // Calculer les bounds RÉELS en monde (pour les collisions)
+    let realMinX = Infinity, realMaxX = -Infinity;
+    let realMinZ = Infinity, realMaxZ = -Infinity;
+    
+    polygon.forEach(v => {
+      const vec = new THREE.Vector3(v.x, v.y, v.z);
+      vec.applyMatrix4(matrix);
+      
+      realMinX = Math.min(realMinX, vec.x);
+      realMaxX = Math.max(realMaxX, vec.x);
+      realMinZ = Math.min(realMinZ, vec.z);
+      realMaxZ = Math.max(realMaxZ, vec.z);
+    });
+    
+    // Mettre à jour les bounds ET infos de la box orientée pour les poissons
+    data.bounds = {
+      minX: realMinX,
+      maxX: realMaxX,
+      minZ: realMinZ,
+      maxZ: realMaxZ
+    };
+    
+    // Infos de la box orientée pour collisions précises
+    data.orientedBox = {
+      centerX: centerLocal.x,
+      centerZ: centerLocal.z,
+      width: width,
+      depth: depth,
+      rotationY: rotationY * Math.PI / 180, // En radians
+      halfWidth: width / 2,
+      halfDepth: depth / 2
+    };
+
+    // Stocker la matrice de transformation du plan (local -> world) et son inverse
+    data.orientedBox.matrix = matrix.clone();
+    data.orientedBox.inverseMatrix = new THREE.Matrix4().copy(matrix).invert();
+    
+    // Créer la box rouge ORIENTÉE comme le sol réel
+    const box = document.createElement('a-box');
+    box.setAttribute('id', 'spawn-zone-bounds');
+    box.setAttribute('position', `${centerLocal.x} ${data.floorY + height/2} ${centerLocal.z}`);
+    box.setAttribute('rotation', `0 ${rotationY} 0`);
+    box.setAttribute('width', width);
+    box.setAttribute('height', height);
+    box.setAttribute('depth', depth);
+    box.setAttribute('material', 'color: #ff0000; opacity: 0.3; transparent: true; wireframe: true; side: double');
+    box.setAttribute('geometry', 'primitive: box');
+    
+    console.log('📦 ZONE ROUGE créée avec rotation du sol :');
+    console.log(`   Position: (${centerLocal.x.toFixed(2)}, ${(data.floorY + height/2).toFixed(2)}, ${centerLocal.z.toFixed(2)})`);
+    console.log(`   Rotation Y: ${rotationY.toFixed(1)}°`);
+    console.log(`   Dimensions locales: ${width.toFixed(2)}m x ${depth.toFixed(2)}m`);
+    console.log(`   Bounds monde X: ${realMinX.toFixed(2)} à ${realMaxX.toFixed(2)}`);
+    console.log(`   Bounds monde Z: ${realMinZ.toFixed(2)} à ${realMaxZ.toFixed(2)}`);
+    console.log('   ✅ Poissons utiliseront bounds monde pour collisions');
+    
+    this.el.sceneEl.appendChild(box);
+  },
+
+  createFloorPolygonVisualization: function(data) {
+    const polygon = data.floorPolygon;
+    const pose = data.floorPose;
+    const height = data.height;
+    
+    console.log('📦 Création visualisation EXACTE basée sur polygone du sol (', polygon.length, 'vertices)');
+    
+    // Créer une entité pour contenir la visualisation
+    const container = document.createElement('a-entity');
+    container.setAttribute('id', 'spawn-zone-bounds');
+    
+    // Matrice de transformation du sol
+    const matrix = new THREE.Matrix4();
+    matrix.fromArray(pose.transform.matrix);
+    
+    // 1. Créer le contour du sol (en bas)
+    const bottomPoints = [];
+    polygon.forEach(v => {
+      const vec = new THREE.Vector3(v.x, v.y, v.z);
+      vec.applyMatrix4(matrix);
+      bottomPoints.push(vec);
+    });
+    
+    // 2. Créer le contour du plafond (même polygone mais +height en Y)
+    const topPoints = bottomPoints.map(p => 
+      new THREE.Vector3(p.x, p.y + height, p.z)
+    );
+    
+    // 3. Dessiner les contours horizontaux (sol et plafond) EN ROUGE
+    this.drawPolygonLoop(bottomPoints, container, '#ff0000', 1.0);
+    this.drawPolygonLoop(topPoints, container, '#ff0000', 1.0);
+    
+    // 4. Dessiner les arêtes verticales (coins) EN ROUGE
+    for (let i = 0; i < bottomPoints.length; i++) {
+      const lineGeom = new THREE.BufferGeometry().setFromPoints([
+        bottomPoints[i],
+        topPoints[i]
+      ]);
+      const lineMat = new THREE.LineBasicMaterial({ 
+        color: 0xff0000, 
+        transparent: true, 
+        opacity: 1.0,
+        linewidth: 2
+      });
+      const line = new THREE.Line(lineGeom, lineMat);
+      this.el.sceneEl.object3D.add(line);
+      this.planeMeshes.push(line);
+    }
+    
+    // 5. Créer une surface semi-transparente pour le sol
+    const shape = new THREE.Shape();
+    shape.moveTo(polygon[0].x, polygon[0].z);
+    for (let i = 1; i < polygon.length; i++) {
+      shape.lineTo(polygon[i].x, polygon[i].z);
+    }
+    shape.closePath();
+    
+    const shapeGeom = new THREE.ShapeGeometry(shape);
+    shapeGeom.rotateX(-Math.PI / 2);
+    
+    const shapeMat = new THREE.MeshBasicMaterial({
+      color: 0xff0000,
+      transparent: true,
+      opacity: 0.15,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    });
+    
+    const shapeMesh = new THREE.Mesh(shapeGeom, shapeMat);
+    shapeMesh.matrixAutoUpdate = false;
+    shapeMesh.matrix.copy(matrix);
+    
+    this.el.sceneEl.object3D.add(shapeMesh);
+    this.planeMeshes.push(shapeMesh);
+    
+    console.log('✅ Visualisation polygonale créée - suit EXACTEMENT le sol détecté');
+    
+    this.el.sceneEl.appendChild(container);
+  },
+
+  drawPolygonLoop: function(points, container, color, opacity) {
+    const closedPoints = [...points, points[0]];
+    const lineGeom = new THREE.BufferGeometry().setFromPoints(closedPoints);
+    const lineMat = new THREE.LineBasicMaterial({ 
+      color: color, 
+      transparent: true, 
+      opacity: opacity,
+      linewidth: 3
+    });
+    const line = new THREE.Line(lineGeom, lineMat);
+    this.el.sceneEl.object3D.add(line);
+    this.planeMeshes.push(line);
+  },
+
+  createStandardBox: function(data) {
+    // Box rectangulaire (MÊME ZONE que pour les collisions des poissons)
+    const bounds = data.bounds || {};
+    const centerX = (bounds.minX + bounds.maxX) / 2;
+    const centerZ = (bounds.minZ + bounds.maxZ) / 2;
+    const width = bounds.maxX - bounds.minX;
+    const depth = bounds.maxZ - bounds.minZ;
+    
+    const box = document.createElement('a-box');
+    box.setAttribute('id', 'spawn-zone-bounds');
+    box.setAttribute('position', `${centerX} ${data.floorY + data.height/2} ${centerZ}`);
+    box.setAttribute('width', width);
+    box.setAttribute('height', data.height);
+    box.setAttribute('depth', depth);
+    box.setAttribute('material', 'color: #ff0000; opacity: 0.3; transparent: true; wireframe: true; side: double');
+    box.setAttribute('geometry', 'primitive: box');
+    
+    console.log('📦 ZONE ROUGE créée (bounds du sol) :');
+    console.log(`   Position: (${centerX.toFixed(2)}, ${(data.floorY + data.height/2).toFixed(2)}, ${centerZ.toFixed(2)})`);
+    console.log(`   Taille: ${width.toFixed(2)}m x ${data.height.toFixed(2)}m x ${depth.toFixed(2)}m`);
+    console.log(`   Bounds X: ${bounds.minX.toFixed(2)} à ${bounds.maxX.toFixed(2)}`);
+    console.log(`   Bounds Z: ${bounds.minZ.toFixed(2)} à ${bounds.maxZ.toFixed(2)}`);
+    
+    this.el.sceneEl.appendChild(box);
   },
 
   createScanUI: function () {
@@ -121,6 +408,9 @@ AFRAME.registerComponent('room-detection', {
 
   onEnterXR: function () {
     console.log('🥽 Entrée en mode XR - Démarrage du scan');
+    
+    // Marquer qu'on a une session XR pour éviter le mode test
+    this.xrSessionRequested = true;
 
     // Attendre que la session soit prête
     setTimeout(() => {
@@ -456,6 +746,8 @@ AFRAME.registerComponent('room-detection', {
         type: plane.orientation,
         pose: planePose
       };
+      // Flag pour éviter de recréer plusieurs fois la même visualisation
+      planeData._visualCreated = false;
       this.detectedPlanes.set(plane, planeData);
 
       // Classifier le plan selon son orientation et sa hauteur
@@ -601,6 +893,9 @@ AFRAME.registerComponent('room-detection', {
 
     if (!polygon || polygon.length < 3) return;
 
+    // Éviter de créer plusieurs fois la visualisation pour le même plane
+    if (planeData._visualCreated) return;
+
     // Calculer la hauteur Y moyenne pour la classification
     const matrix = new THREE.Matrix4();
     matrix.fromArray(pose.transform.matrix);
@@ -675,6 +970,8 @@ AFRAME.registerComponent('room-detection', {
 
     this.el.sceneEl.object3D.add(mesh);
     this.planeMeshes.push(mesh);
+    // Marquer la visualisation comme créée pour ce plane
+    planeData._visualCreated = true;
   },
 
   // Créer une visualisation standard pour les autres plans
@@ -751,6 +1048,8 @@ AFRAME.registerComponent('room-detection', {
     this.el.sceneEl.object3D.add(mesh);
     this.el.sceneEl.object3D.add(wireframe);
     this.planeMeshes.push(mesh, wireframe);
+    // Marquer la visualisation comme créée pour ce plane
+    planeData._visualCreated = true;
   },
 
   updateScanUI: function () {
@@ -827,41 +1126,117 @@ AFRAME.registerComponent('room-detection', {
     this.scanText.setAttribute('value', `${totalPlanes} surfaces\nAdaptation eau...`);
     this.progressBar.setAttribute('color', '#00ff00');
 
-    // Calculer les dimensions finales
-    const bounds = this.roomBounds;
-    let width = bounds.maxX - bounds.minX;
-    let depth = bounds.maxZ - bounds.minZ;
-    let height = bounds.maxY - bounds.minY;
+    // CALCUL AMÉLIORÉ : Utiliser le sol le plus grand pour définir la zone
+    let roomData = null;
+    
+    if (this.floorPlanes.length > 0) {
+      // Trouver le plus grand sol
+      let largestFloor = this.floorPlanes[0];
+      let maxArea = 0;
+      
+      this.floorPlanes.forEach(({ data }) => {
+        const area = data.dimensions?.area || 0;
+        if (area > maxArea) {
+          maxArea = area;
+          largestFloor = { data };
+        }
+      });
+      
+      const floorData = largestFloor.data;
+      const floorBounds = floorData.bounds;
+      
+      // Utiliser les dimensions réelles du sol principal
+      const width = floorBounds.maxX - floorBounds.minX;
+      const depth = floorBounds.maxZ - floorBounds.minZ;
+      const centerX = (floorBounds.minX + floorBounds.maxX) / 2;
+      const centerZ = (floorBounds.minZ + floorBounds.maxZ) / 2;
+      
+      // Hauteur basée sur les murs ou valeur par défaut
+      let height = this.roomBounds.maxY - this.floorY;
+      if (!isFinite(height) || height < 1.5) height = 2.5;
+      height = Math.min(height, 4.0); // Limiter à 4m max
+      
+      console.log('📐 Dimensions basées sur le sol principal:');
+      console.log(`   - Aire du sol: ${maxArea.toFixed(2)}m²`);
+      console.log(`   - Largeur: ${width.toFixed(2)}m`);
+      console.log(`   - Profondeur: ${depth.toFixed(2)}m`);
+      console.log(`   - Hauteur: ${height.toFixed(2)}m`);
+      console.log(`   - Centre: (${centerX.toFixed(2)}, ${centerZ.toFixed(2)})`);
+      console.log(`   - Sol Y: ${this.floorY.toFixed(2)}m\n`);
+      
+      roomData = {
+        width: width,
+        depth: depth,
+        height: height,
+        centerX: centerX,
+        centerZ: centerZ,
+        floorY: this.floorY,
+        bounds: floorBounds,
+        floorPolygon: floorData.polygon,
+        floorPose: floorData.pose,
+        orientedBox: null // Sera rempli par createBoxFromPolygon
+      };
+    } else {
+      // Fallback : utiliser les bounds globaux
+      const bounds = this.roomBounds;
+      let width = bounds.maxX - bounds.minX;
+      let depth = bounds.maxZ - bounds.minZ;
+      let height = bounds.maxY - bounds.minY;
 
-    // Valider les dimensions
-    if (!isFinite(width) || width < 1) width = 6;
-    if (!isFinite(depth) || depth < 1) depth = 6;
-    if (!isFinite(height) || height < 1) height = 2.5;
+      if (!isFinite(width) || width < 1) width = 6;
+      if (!isFinite(depth) || depth < 1) depth = 6;
+      if (!isFinite(height) || height < 1) height = 2.5;
 
-    width = Math.min(Math.max(width, 2), 20);
-    depth = Math.min(Math.max(depth, 2), 20);
-    height = Math.min(Math.max(height, 1.5), 5);
+      width = Math.min(Math.max(width, 2), 20);
+      depth = Math.min(Math.max(depth, 2), 20);
+      height = Math.min(Math.max(height, 1.5), 5);
 
-    const centerX = isFinite(bounds.minX) && isFinite(bounds.maxX)
-      ? (bounds.minX + bounds.maxX) / 2 : 0;
-    const centerZ = isFinite(bounds.minZ) && isFinite(bounds.maxZ)
-      ? (bounds.minZ + bounds.maxZ) / 2 : -2;
+      const centerX = isFinite(bounds.minX) && isFinite(bounds.maxX)
+        ? (bounds.minX + bounds.maxX) / 2 : 0;
+      const centerZ = isFinite(bounds.minZ) && isFinite(bounds.maxZ)
+        ? (bounds.minZ + bounds.maxZ) / 2 : -2;
 
-    console.log('📐 Dimensions de la pièce:');
-    console.log(`   - Largeur: ${width.toFixed(2)}m`);
-    console.log(`   - Profondeur: ${depth.toFixed(2)}m`);
-    console.log(`   - Hauteur: ${height.toFixed(2)}m`);
-    console.log(`   - Centre: (${centerX.toFixed(2)}, ${centerZ.toFixed(2)})\n`);
+      console.log('📐 Dimensions (fallback - bounds globaux):');
+      console.log(`   - Largeur: ${width.toFixed(2)}m`);
+      console.log(`   - Profondeur: ${depth.toFixed(2)}m`);
+      console.log(`   - Hauteur: ${height.toFixed(2)}m`);
+      console.log(`   - Centre: (${centerX.toFixed(2)}, ${centerZ.toFixed(2)})\n`);
+      
+      roomData = {
+        width: width,
+        depth: depth,
+        height: height,
+        centerX: centerX,
+        centerZ: centerZ,
+        floorY: this.floorY,
+        bounds: bounds
+      };
+    }
 
-    // Émettre l'événement avec les données
+    // Créer une boîte de visualisation pour la zone de spawn
+    // IMPORTANT: createBoxFromPolygon modifie data.bounds et data.orientedBox
+    this.createSpawnZoneBoundingBox(roomData);
+    
+    console.log('📤 Émission room-scanned avec orientedBox:', roomData.orientedBox ? 'OUI ✅' : 'NON ❌');
+
+    // Mettre à jour la variable globale pour que d'autres composants y accèdent immédiatement
+    if (window && window.FISH_ZONE) {
+      window.FISH_ZONE.roomBounds = roomData.bounds;
+      window.FISH_ZONE.orientedBox = roomData.orientedBox || null;
+      window.FISH_ZONE.floorY = roomData.floorY;
+      window.FISH_ZONE.ceilingY = roomData.floorY + roomData.height;
+    }
+
+    // Émettre l'événement avec les données (INCLURE orientedBox!)
     this.el.sceneEl.emit('room-scanned', {
-      bounds: bounds,
-      width: width,
-      depth: depth,
-      height: height,
-      centerX: centerX,
-      centerZ: centerZ,
-      floorY: this.floorY,
+      bounds: roomData.bounds,
+      width: roomData.width,
+      depth: roomData.depth,
+      height: roomData.height,
+      centerX: roomData.centerX,
+      centerZ: roomData.centerZ,
+      floorY: roomData.floorY,
+      orientedBox: roomData.orientedBox || null,
       floorPlanes: this.floorPlanes,
       wallPlanes: this.wallPlanes,
       obstaclePlanes: this.obstaclePlanes,
@@ -869,13 +1244,19 @@ AFRAME.registerComponent('room-detection', {
       allPlanes: this.detectedPlanes
     });
 
-    // Cacher l'UI après 3s
+    // Cacher l'UI après 3s; ne pas effacer les visualisations si debug=true
     setTimeout(() => {
       this.scanPanel.setAttribute('visible', 'false');
 
-      setTimeout(() => {
-        this.fadeOutPlaneVisuals();
-      }, 2000);
+      if (!this.data.debug) {
+        // En mode non-debug, on laisse l'effet se dissiper après 2s
+        setTimeout(() => {
+          this.fadeOutPlaneVisuals();
+        }, 2000);
+      } else {
+        // En debug mode, garder les visuals visibles pour inspection
+        console.log('🔍 Debug mode actif — conservation des visualisations de scan');
+      }
     }, 3000);
   },
 

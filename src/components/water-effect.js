@@ -4,7 +4,9 @@ AFRAME.registerComponent('water-shader', {
     opacity: { type: 'number', default: 0.6 },
     speed: { type: 'number', default: 1.0 },
     waveHeight: { type: 'number', default: 0.1 },
-    waveFrequency: { type: 'number', default: 2.0 }
+    waveFrequency: { type: 'number', default: 2.0 },
+    width: { type: 'number', default: 10 },
+    depth: { type: 'number', default: 10 }
   },
 
   init: function () {
@@ -12,7 +14,7 @@ AFRAME.registerComponent('water-shader', {
     const el = this.el;
 
     // Créer une géométrie plane avec beaucoup de subdivisions pour les vagues
-    const geometry = new THREE.PlaneGeometry(10, 10, 64, 64);
+    const geometry = new THREE.PlaneGeometry(data.width, data.depth, 64, 64);
 
     // Matériau avec transparence
     const material = new THREE.MeshStandardMaterial({
@@ -61,5 +63,22 @@ AFRAME.registerComponent('water-shader', {
 
     this.mesh.geometry.attributes.position.needsUpdate = true;
     this.mesh.geometry.computeVertexNormals();
+  },
+
+  update: function (oldData) {
+    // Si les dimensions changent, recréer la géométrie
+    if (this.mesh && (oldData.width !== this.data.width || oldData.depth !== this.data.depth)) {
+      console.log('💧 water-shader: Mise à jour des dimensions:', this.data.width, 'x', this.data.depth);
+      
+      // Disposer de l'ancienne géométrie
+      this.mesh.geometry.dispose();
+      
+      // Créer une nouvelle géométrie avec les nouvelles dimensions
+      const geometry = new THREE.PlaneGeometry(this.data.width, this.data.depth, 64, 64);
+      this.mesh.geometry = geometry;
+      
+      // Mettre à jour les positions originales
+      this.originalPositions = geometry.attributes.position.array.slice();
+    }
   }
 });
