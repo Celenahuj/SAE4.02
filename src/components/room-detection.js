@@ -8,8 +8,11 @@ AFRAME.registerComponent('room-detection', {
     debug: { type: 'boolean', default: true },
     scanDuration: { type: 'number', default: 15000 },
     showPlanes: { type: 'boolean', default: true },
-    continuousDetection: { type: 'boolean', default: true }
+    continuousDetection: { type: 'boolean', default: true },
+    // Si true, autorise l'émission automatique de données de test (development only)
+    enableTest: { type: 'boolean', default: false }
   },
+
 
   init: function () {
     // Bounds de la pièce
@@ -58,9 +61,27 @@ AFRAME.registerComponent('room-detection', {
     console.log('🏠 Room detection initialisé - Approche du professeur Benoit Crespin');
 
     // MODE TEST: Si pas en VR après 8 secondes, émettre des données de test
-    setTimeout(() => {
+    setTimeout(async () => {
+      // TEST MODE: n'émettre des données de test QUE si explicitement autorisé
+      // via l'attribut `enableTest` du composant ou le paramètre d'URL `allowTest=1`.
+      try {
+        const urlParams = (typeof window !== 'undefined' && window.location && window.location.search)
+          ? new URLSearchParams(window.location.search)
+          : null;
+        const allowParam = urlParams ? (urlParams.get('allowTest') === '1' || urlParams.get('allowTest') === 'true') : false;
+        const allowTest = this.data.enableTest || allowParam;
+
+        if (!allowTest) return; // pas d'émission automatique de test
+
+        // N'émettre des données de test que si WebXR est absent (PC dev)
+        if ('xr' in navigator) return;
+      } catch (e) {
+        // ignore
+        return;
+      }
+
       if (!this.xrSession && !this.xrSessionRequested && !this.scanComplete && !this.isScanning) {
-        console.warn('⚠️ Pas de session XR détectée - émission de données de test pour le développement PC');
+        console.warn('⚠️ WebXR non présent — émission de données de test pour le développement PC');
         this.emitTestRoomData();
       }
     }, 8000);
@@ -411,6 +432,42 @@ AFRAME.registerComponent('room-detection', {
     
     // Marquer qu'on a une session XR pour éviter le mode test
     this.xrSessionRequested = true;
+
+    // Réinitialiser l'état de scan et les données globales partagées
+    try {
+      if (window && window.FISH_ZONE) {
+        window.FISH_ZONE.roomBounds = null;
+        window.FISH_ZONE.orientedBox = null;
+        window.FISH_ZONE.floorY = 0;
+        window.FISH_ZONE.ceilingY = 2.5;
+        window.FISH_ZONE.obstacles = [];
+        window.FISH_ZONE.wallPlanes = [];
+        window.FISH_ZONE.scanned = false;
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    // Réinitialiser l'état interne du composant pour forcer un nouveau scan propre
+    this.detectedPlanes = new Map();
+    this.floorPlanes = [];
+    this.ceilingPlanes = [];
+    this.wallPlanes = [];
+    this.obstaclePlanes = [];
+    this.hitSurfaces = new Map();
+    this.clearPlaneVisuals();
+    this.isScanning = false;
+    this.scanComplete = false;
+    this.scanStartTime = 0;
+    this.floorY = 0;
+
+    // Émettre un événement pour informer les autres composants (ex: fish-spawner) de réinitialisation
+    try {
+      this.el.sceneEl.emit('room-reset');
+      if (this.data.debug) console.log('🔁 room-reset émis pour réinitialiser les composants dépendants');
+    } catch (e) {
+      // ignore
+    }
 
     // Attendre que la session soit prête
     setTimeout(() => {
@@ -1225,6 +1282,7 @@ AFRAME.registerComponent('room-detection', {
       window.FISH_ZONE.orientedBox = roomData.orientedBox || null;
       window.FISH_ZONE.floorY = roomData.floorY;
       window.FISH_ZONE.ceilingY = roomData.floorY + roomData.height;
+      window.FISH_ZONE.scanned = true;
     }
 
     // Émettre l'événement avec les données (INCLURE orientedBox!)

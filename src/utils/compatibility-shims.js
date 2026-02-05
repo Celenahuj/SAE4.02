@@ -106,3 +106,33 @@ window.addEventListener('load', function() {
     }
   }, 100);
 });
+
+// CLEANUP: Supprimer d'éventuels éléments résiduels laissés par une session précédente
+window.addEventListener('load', function() {
+  setTimeout(function() {
+    try {
+      // Supprimer les visualisations de zone (spawn-zone-bounds)
+      const oldBoxes = document.querySelectorAll('#spawn-zone-bounds');
+      oldBoxes.forEach(el => el.parentNode && el.parentNode.removeChild(el));
+
+      // Supprimer les poissons résiduels
+      const oldFishes = document.querySelectorAll('.fish');
+      oldFishes.forEach(f => f.parentNode && f.parentNode.removeChild(f));
+
+      // Réinitialiser la variable globale si présente
+      if (window && window.FISH_ZONE) {
+        window.FISH_ZONE.roomBounds = null;
+        window.FISH_ZONE.orientedBox = null;
+        window.FISH_ZONE.floorY = 0;
+        window.FISH_ZONE.ceilingY = 2.5;
+        window.FISH_ZONE.scanned = false;
+        window.FISH_ZONE.obstacles = [];
+        window.FISH_ZONE.wallPlanes = [];
+      }
+
+      console.log('🧹 Cleanup au chargement: anciens spawn/poissons supprimés, FISH_ZONE réinitialisé');
+    } catch (e) {
+      console.warn('Cleanup failed', e);
+    }
+  }, 200);
+});

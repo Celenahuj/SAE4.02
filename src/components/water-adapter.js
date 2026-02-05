@@ -43,6 +43,7 @@ AFRAME.registerComponent('water-adapter', {
     // Mettre à jour l'eau
     this._updateWaterGeometry();
     this._updateWaterPosition();
+    this._applyRotation();
     this._updateAnimation();
   },
 
@@ -50,10 +51,13 @@ AFRAME.registerComponent('water-adapter', {
     if (!this.roomData) return;
 
     const margin = this.data.margin;
-    const width = this.roomData.width + (margin * 2);
-    const depth = this.roomData.depth + (margin * 2);
+    const trim = 0.02; // petit retrait pour éviter le léger dépassement visuel
+    let width = this.roomData.width + (margin * 2) - (trim * 2);
+    let depth = this.roomData.depth + (margin * 2) - (trim * 2);
+    width = Math.max(0.1, width);
+    depth = Math.max(0.1, depth);
 
-    console.log('💧 water-adapter: Nouvelle taille de l\'eau:', {width, depth});
+    console.log('💧 water-adapter: Nouvelle taille de l\'eau:', {width, depth, trim});
 
     // Trouver tous les enfants avec water-shader
     const waterEntities = this.el.querySelectorAll('[water-shader]');
@@ -66,7 +70,9 @@ AFRAME.registerComponent('water-adapter', {
         depth: depth
       });
       
-      console.log(`💧 water-adapter: Couche ${index + 1} redimensionnée à ${width.toFixed(2)}m x ${depth.toFixed(2)}m`);
+      // Rendre visible après dimensionnement
+      try { entity.setAttribute('visible', 'true'); } catch (e) {}
+      console.log(`💧 water-adapter: Couche ${index + 1} redimensionnée et affichée à ${width.toFixed(2)}m x ${depth.toFixed(2)}m`);
     });
   },
 

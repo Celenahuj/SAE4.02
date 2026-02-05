@@ -4,6 +4,7 @@ window.FISH_ZONE = {
   orientedBox: null,
   floorY: 0,
   ceilingY: 2.5,
+  scanned: false,
   obstacles: [],
   wallPlanes: []
 };
@@ -37,8 +38,23 @@ AFRAME.registerComponent('fish-movement', {
       this._updateZoneFromEvent(e.detail);
     });
     
+    // Écouter la réinitialisation de la room pour permettre un nouveau spawn si nécessaire
+    this.el.sceneEl.addEventListener('room-reset', () => {
+      console.log('🐟 fish-spawner: room-reset reçu — réinitialisation du spawn');
+      // Permettre de respawner lors d'un nouveau scan sans recharger la page
+      this.spawned = false;
+
+      // Supprimer les poissons existants pour éviter duplication si on respawn
+      if (this.fishes && this.fishes.length > 0) {
+        this.fishes.forEach(f => {
+          if (f.parentNode) f.parentNode.removeChild(f);
+        });
+        this.fishes = [];
+      }
+    });
+    
     // Récupérer les infos si déjà disponibles
-    if (window.FISH_ZONE.roomBounds) {
+    if (window.FISH_ZONE.scanned) {
       this._updateZoneFromGlobal();
     }
   },
@@ -616,8 +632,9 @@ AFRAME.registerComponent('fish-spawner', {
       
       fish.setAttribute('position', `${x} ${y} ${z}`);
 
-      // Mark as fish and grabbable
+      // Mark as fish, collision target and grabbable
       fish.classList.add('fish');
+      fish.classList.add('fish-target');
       fish.setAttribute('grabbable', '');
 
       // Add movement component (much slower for boxes)
