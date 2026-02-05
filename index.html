@@ -19,6 +19,7 @@
   <script src="src/components/water-adapter.js"></script>
   <script src="src/components/grab-manager.js"></script>
   <script src="src/components/bubble-spawner.js"></script>
+  <script src="src/components/coral-placer.js"></script>
   <script src="src/components/fish-spawner.js"></script>
   <script src="src/components/room-detection.js"></script>
 </head>
@@ -48,6 +49,7 @@
       <!-- Goldfish asset so one target can be adjusted individually -->
       <a-asset-item id="goldfish" src="assets/models/Goldfish.glb"></a-asset-item>
       <a-asset-item id="piranha" src="assets/models/Piranha.glb"></a-asset-item>
+      <a-asset-item id="starfish" src="assets/models/Starfish.glb"></a-asset-item>
     </a-assets>
 
     <!-- Ancre monde : tous les objets 3D sont enfants de cette entité pour rester fixes dans l'espace réel -->
@@ -78,6 +80,9 @@
       <!-- Bubble spawner: spawn intermittently under water inside the detected room -->
       <a-entity id="bubble-spawner" bubble-spawner></a-entity>
 
+      <!-- Coral placer: place coral models on yellow visuals and on the floor after scan -->
+      <a-entity id="coral-placer" coral-placer></a-entity>
+
     </a-entity>
 
     <!-- VR Hands -->
@@ -100,8 +105,7 @@
       </a-entity>
     </a-entity>
 
-    <!-- Bubble spawner: spawn intermittently under water inside the detected room -->
-    <a-entity id="bubble-spawner" bubble-spawner></a-entity>
+    <!-- (moved bubble-spawner into world-anchor) -->
 
   </a-scene>
 
