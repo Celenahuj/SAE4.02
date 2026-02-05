@@ -119,6 +119,10 @@ window.addEventListener('load', function() {
       const oldFishes = document.querySelectorAll('.fish');
       oldFishes.forEach(f => f.parentNode && f.parentNode.removeChild(f));
 
+      // Supprimer d'anciennes bulles statiques ou dynamiques
+      const oldBubbles = document.querySelectorAll('#bubbles, .bubble');
+      oldBubbles.forEach(b => b.parentNode && b.parentNode.removeChild(b));
+
       // Réinitialiser la variable globale si présente
       if (window && window.FISH_ZONE) {
         window.FISH_ZONE.roomBounds = null;
