@@ -575,12 +575,28 @@ AFRAME.registerComponent('fish-spawner', {
 
     for (let i = 0; i < this.data.count; i++) {
       const fish = document.createElement('a-entity');
-
-      // Debug/test shape: use a box so grabbing is visually obvious
-      fish.setAttribute('geometry', 'primitive: box; width: 0.24; height: 0.14; depth: 0.12');
-      fish.setAttribute('material', `color: ${this._randomColor()}; metalness: 0.05; roughness: 0.9`);
-      
-      // Slight random rotation so boxes don't all look identical
+      // Replace placeholder box with one of the real glTF fish models
+      const models = ['#low_poly_fish', '#fish_fish', '#fish_1', '#fish_2', '#fish_bubbles', '#goldfish', '#piranha'];
+      const chosen = models[Math.floor(Math.random() * models.length)];
+      fish.setAttribute('gltf-model', chosen);
+      // Apply a small random uniform scale so models vary slightly
+      // Reduce fish visual scale by ~6x then divide by 2 again per user request
+      // Original base was ~0.6-1.2; dividing by 12 yields ~0.05-0.1
+      // Further reduce fish scale by 6x as requested: divide previous base by 6
+      // Previous base was (0.6 + rand*0.6)/12 => ~0.05-0.10; dividing by 6 yields ~0.0083-0.0167
+      const baseScale = (0.6 + Math.random() * 0.6) / 72.0; // ~0.0083 - 0.0167
+      // Per-model adjustments: keep `#goldfish` at current size (1×),
+      // make `#fish_fish` (Fish.glb) half-size (0.5×), and multiply all other
+      // models by 2× as requested.
+      const defaultMultiplier = 2.0;
+      const modelScaleAdjust = {
+        '#goldfish': 1.0,
+        '#fish_fish': 0.5
+      };
+      const adjust = (modelScaleAdjust.hasOwnProperty(chosen)) ? modelScaleAdjust[chosen] : defaultMultiplier;
+      const finalScale = baseScale * adjust;
+      fish.setAttribute('scale', `${finalScale} ${finalScale} ${finalScale}`);
+      // Slight random rotation so models don't all look identical
       const rx = (Math.random() - 0.5) * 20;
       const ry = (Math.random() - 0.5) * 180;
       const rz = (Math.random() - 0.5) * 20;
