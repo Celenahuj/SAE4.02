@@ -134,7 +134,7 @@ window.addEventListener('load', function() {
         window.FISH_ZONE.wallPlanes = [];
       }
 
-      console.log('🧹 Cleanup au chargement: anciens spawn/poissons supprimés, FISH_ZONE réinitialisé');
+      console.log('🧹 Cleanup on load: old spawns/fish removed, FISH_ZONE reset');
     } catch (e) {
       console.warn('Cleanup failed', e);
     }

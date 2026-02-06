@@ -275,20 +275,8 @@ AFRAME.registerComponent('grab-manager', {
               const other = (evt && (evt.detail && evt.detail.body && evt.detail.body.el)) || (evt && evt.detail && evt.detail.target) || evt.detail && evt.detail.el;
               const otherEl = other && other.el ? other.el : other;
               if (otherEl && otherEl.classList && otherEl.classList.contains('fish-target')) {
-                console.log('💥 Harpon collision detected with fish');
-                otherEl.setAttribute('visible', 'false');
-                setTimeout(() => { if (otherEl.parentNode) otherEl.parentNode.removeChild(otherEl); }, 80);
-                // gentle slow-down on collision but keep some motion
-                try {
-                  if (el.body && el.body.velocity && typeof el.body.velocity.set === 'function') {
-                    const vx = (el.body.velocity.x || 0) * 0.25;
-                    const vy = (el.body.velocity.y || 0) * 0.25;
-                    const vz = (el.body.velocity.z || 0) * 0.25;
-                    el.body.velocity.set(vx, vy, vz);
-                  } else if (el.body && el.body.velocity) {
-                    el.body.velocity.x *= 0.25; el.body.velocity.y *= 0.25; el.body.velocity.z *= 0.25;
-                  }
-                } catch(e) { /* ignore */ }
+                // delegate to central handler which updates score/HUD and removes fish
+                this.processCaughtFish(otherEl, el);
                 el.removeEventListener('collide', onCollide);
               }
             } catch (e) { console.warn('collide handler error', e); }
@@ -405,11 +393,8 @@ AFRAME.registerComponent('grab-manager', {
         fish.object3D.getWorldPosition(fishPos);
         const dist = tipPos.distanceTo(fishPos);
         if (dist < this.collisionRadius) {
-          console.log('🎯 Harpon touché un poisson!');
-          fish.setAttribute('visible', 'false');
-          setTimeout(() => {
-            if (fish.parentNode) fish.parentNode.removeChild(fish);
-          }, 100);
+          // delegate catch handling (scripted launch)
+          this.processCaughtFish(fish, el);
           stopped = true;
           break;
         }
@@ -500,16 +485,74 @@ AFRAME.registerComponent('grab-manager', {
       const distance = tipPos.distanceTo(fishPos);
       
       if (distance < this.collisionRadius) {
-        console.log('🎯 Poisson attrapé!');
-        // Make fish disappear
-        fish.setAttribute('visible', 'false');
-        // Remove after animation
-        setTimeout(() => {
-          if (fish.parentNode) {
-            fish.parentNode.removeChild(fish);
-          }
-        }, 100);
+        // process catch from spear tip collision
+        this.processCaughtFish(fish, this.grabbedSpear);
       }
     });
+  },
+
+  processCaughtFish: function (otherEl, spearEl) {
+    if (!otherEl) return;
+    try {
+      // prevent double-handling
+      if (otherEl._caught) return; otherEl._caught = true;
+
+      // Determine fish type
+      const caughtFishType = otherEl.getAttribute('data-fish-type') || otherEl.getAttribute('data-fish') || null;
+
+      // Determine current bonus fish shown in UI (if any)
+      let bonusFishType = null;
+      const bonusFishEntity = document.querySelector('#fish-3d');
+      if (bonusFishEntity) {
+        const rot = bonusFishEntity.components && bonusFishEntity.components['fish-rotator'];
+        if (rot && rot.getCurrentFish) bonusFishType = rot.getCurrentFish();
+        else {
+          const m = bonusFishEntity.getAttribute('gltf-model');
+          if (typeof m === 'string') bonusFishType = m.replace('#','');
+        }
+      }
+
+      const isCorrect = (caughtFishType && bonusFishType && caughtFishType === bonusFishType) || false;
+      const pointsEarned = isCorrect ? 10 : -5;
+
+      // record to game timer
+      if (window.gameTimer && window.gameTimer.isGameActive && window.gameTimer.isGameActive()) {
+        window.gameTimer.addCaughtFish(caughtFishType || 'unknown', isCorrect, pointsEarned);
+      }
+
+      // update visible score display
+      try {
+        const scoreDisplay = document.querySelector('#score-display');
+        if (scoreDisplay && window.gameTimer) {
+          const count = (window.gameTimer.getCaughtFishes && window.gameTimer.getCaughtFishes().length) || 0;
+          const points = (window.gameTimer.getTotalScore && window.gameTimer.getTotalScore()) || 0;
+          scoreDisplay.setAttribute('value', `Fish: ${count} | Points: ${points}`);
+        }
+      } catch (e) {}
+
+      // advance bonus fish if correct
+      try {
+        if (isCorrect && bonusFishEntity && bonusFishEntity.components && bonusFishEntity.components['fish-rotator'] && bonusFishEntity.components['fish-rotator'].nextFish) {
+          bonusFishEntity.components['fish-rotator'].nextFish();
+        }
+      } catch (e) {}
+
+      // hide and remove the fish
+      otherEl.setAttribute('visible', 'false');
+      setTimeout(() => { if (otherEl.parentNode) otherEl.parentNode.removeChild(otherEl); }, 80);
+
+      // gentle slow-down on spear if physics body present
+      try {
+        if (spearEl && spearEl.body && spearEl.body.velocity && typeof spearEl.body.velocity.set === 'function') {
+          const vx = (spearEl.body.velocity.x || 0) * 0.25;
+          const vy = (spearEl.body.velocity.y || 0) * 0.25;
+          const vz = (spearEl.body.velocity.z || 0) * 0.25;
+          spearEl.body.velocity.set(vx, vy, vz);
+        } else if (spearEl && spearEl.body && spearEl.body.velocity) {
+          spearEl.body.velocity.x *= 0.25; spearEl.body.velocity.y *= 0.25; spearEl.body.velocity.z *= 0.25;
+        }
+      } catch (e) {}
+
+    } catch (e) { console.warn('processCaughtFish error', e); }
   }
 });

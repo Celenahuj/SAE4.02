@@ -231,7 +231,7 @@ AFRAME.registerComponent('room-detection', {
     box.setAttribute('width', width);
     box.setAttribute('height', height);
     box.setAttribute('depth', depth);
-    box.setAttribute('material', 'color: #ff0000; opacity: 0.3; transparent: true; wireframe: true; side: double');
+    box.setAttribute('material', 'color: #ff0000; opacity: 0.12; transparent: true; wireframe: true; side: double');
     box.setAttribute('geometry', 'primitive: box');
     
     console.log('📦 ZONE ROUGE créée avec rotation du sol :');
@@ -273,9 +273,9 @@ AFRAME.registerComponent('room-detection', {
       new THREE.Vector3(p.x, p.y + height, p.z)
     );
     
-    // 3. Dessiner les contours horizontaux (sol et plafond) EN ROUGE
-    this.drawPolygonLoop(bottomPoints, container, '#ff0000', 1.0);
-    this.drawPolygonLoop(topPoints, container, '#ff0000', 1.0);
+    // 3. Dessiner les contours horizontaux (sol et plafond) EN ROUGE (moins opaques)
+    this.drawPolygonLoop(bottomPoints, container, '#ff0000', 0.5);
+    this.drawPolygonLoop(topPoints, container, '#ff0000', 0.5);
     
     // 4. Dessiner les arêtes verticales (coins) EN ROUGE
     for (let i = 0; i < bottomPoints.length; i++) {
@@ -286,7 +286,7 @@ AFRAME.registerComponent('room-detection', {
       const lineMat = new THREE.LineBasicMaterial({ 
         color: 0xff0000, 
         transparent: true, 
-        opacity: 1.0,
+        opacity: 0.6,
         linewidth: 2
       });
       const line = new THREE.Line(lineGeom, lineMat);
@@ -308,7 +308,7 @@ AFRAME.registerComponent('room-detection', {
     const shapeMat = new THREE.MeshBasicMaterial({
       color: 0xff0000,
       transparent: true,
-      opacity: 0.15,
+      opacity: 0.12,
       side: THREE.DoubleSide,
       depthWrite: false
     });
@@ -353,7 +353,7 @@ AFRAME.registerComponent('room-detection', {
     box.setAttribute('width', width);
     box.setAttribute('height', data.height);
     box.setAttribute('depth', depth);
-    box.setAttribute('material', 'color: #ff0000; opacity: 0.3; transparent: true; wireframe: true; side: double');
+    box.setAttribute('material', 'color: #ff0000; opacity: 0.12; transparent: true; wireframe: true; side: double');
     box.setAttribute('geometry', 'primitive: box');
     
     console.log('📦 ZONE ROUGE créée (bounds du sol) :');
@@ -366,7 +366,7 @@ AFRAME.registerComponent('room-detection', {
   },
 
   createScanUI: function () {
-    // Panneau d'information de scan visible en VR
+    // Scan information panel visible in VR
     this.scanPanel = document.createElement('a-entity');
     this.scanPanel.setAttribute('id', 'scan-panel');
     this.scanPanel.setAttribute('position', '0 1.5 -1.5');
@@ -383,7 +383,7 @@ AFRAME.registerComponent('room-detection', {
 
     // Titre
     this.scanTitle = document.createElement('a-text');
-    this.scanTitle.setAttribute('value', '🔍 SCAN DE LA PIECE');
+    this.scanTitle.setAttribute('value', '🔍 SCANNING ROOM');
     this.scanTitle.setAttribute('align', 'center');
     this.scanTitle.setAttribute('color', '#00ff00');
     this.scanTitle.setAttribute('width', '2.2');
@@ -392,7 +392,7 @@ AFRAME.registerComponent('room-detection', {
 
     // Texte d'instructions
     this.scanText = document.createElement('a-text');
-    this.scanText.setAttribute('value', 'Regardez les surfaces\nPointez les tables avec la manette');
+    this.scanText.setAttribute('value', 'Look at surfaces\nPoint the controller at tables');
     this.scanText.setAttribute('align', 'center');
     this.scanText.setAttribute('color', '#ffffff');
     this.scanText.setAttribute('width', '1.8');
@@ -559,8 +559,8 @@ AFRAME.registerComponent('room-detection', {
     this.scanStartTime = Date.now();
     this.scanPanel.setAttribute('visible', 'true');
 
-    console.log('🔍 Démarrage du scan de l\'environnement...');
-    console.log('💡 Regardez les tables et surfaces pour les détecter !');
+    console.log('🔍 Starting environment scan...');
+    console.log('💡 Look at tables and surfaces to detect them!');
 
     // Programmer la fin du scan
     setTimeout(() => {
@@ -1157,7 +1157,7 @@ AFRAME.registerComponent('room-detection', {
     const totalPlanes = this.detectedPlanes.size;
 
     // Logs détaillés comme le professeur
-    console.log(`\n✅ SCAN TERMINÉ - ${totalPlanes} surfaces analysées`);
+    console.log(`\n✅ SCAN COMPLETE - ${totalPlanes} surfaces analyzed`);
     console.log(`   🟢 Sols: ${this.floorPlanes.length}`);
     console.log(`   🔷 Murs: ${this.wallPlanes.length}`);
     console.log(`   🟠 Obstacles (tables, meubles): ${this.obstaclePlanes.length}`);
@@ -1178,9 +1178,9 @@ AFRAME.registerComponent('room-detection', {
     }
 
     // Mettre à jour l'UI
-    this.scanTitle.setAttribute('value', '✅ SCAN TERMINÉ');
+    this.scanTitle.setAttribute('value', '✅ SCAN COMPLETE');
     this.scanTitle.setAttribute('color', '#00ff00');
-    this.scanText.setAttribute('value', `${totalPlanes} surfaces\nAdaptation eau...`);
+    this.scanText.setAttribute('value', `${totalPlanes} surfaces\nAdapting water...`);
     this.progressBar.setAttribute('color', '#00ff00');
 
     // CALCUL AMÉLIORÉ : Utiliser le sol le plus grand pour définir la zone

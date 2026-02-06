@@ -18,20 +18,20 @@ AFRAME.registerComponent('water-adapter', {
     // Écouter l'événement room-scanned
     this.el.sceneEl.addEventListener('room-scanned', this._onRoomScanned.bind(this));
     
-    console.log('💧 water-adapter: En attente de room-scanned...');
+    console.log('💧 water-adapter: Waiting for room-scanned...');
   },
 
   _onRoomScanned: function(event) {
-    console.log('💧 water-adapter: Événement room-scanned reçu');
+    console.log('💧 water-adapter: room-scanned event received');
     
     const data = event.detail;
     if (!data || !data.bounds) {
-      console.warn('💧 water-adapter: Pas de bounds dans room-scanned');
+      console.warn('💧 water-adapter: No bounds in room-scanned');
       return;
     }
 
     this.roomData = data;
-    console.log('💧 water-adapter: Dimensions de la pièce:', {
+    console.log('💧 water-adapter: Room dimensions:', {
       width: data.width,
       depth: data.depth,
       height: data.height,
@@ -40,11 +40,13 @@ AFRAME.registerComponent('water-adapter', {
       floorY: data.floorY
     });
 
-    // Mettre à jour l'eau
+    // Prepare water geometry/position but do NOT start any rise animation here.
+    // The actual rise will be triggered explicitly by calling `startRise()` (from the PLAY button).
     this._updateWaterGeometry();
     this._updateWaterPosition();
     this._applyRotation();
-    this._updateAnimation();
+    // compute and store animation params for later start
+    this._prepareAnimationParams();
   },
 
   _updateWaterGeometry: function() {
@@ -57,22 +59,17 @@ AFRAME.registerComponent('water-adapter', {
     width = Math.max(0.1, width);
     depth = Math.max(0.1, depth);
 
-    console.log('💧 water-adapter: Nouvelle taille de l\'eau:', {width, depth, trim});
+    console.log('💧 water-adapter: New water size:', {width, depth, trim});
 
     // Trouver tous les enfants avec water-shader
     const waterEntities = this.el.querySelectorAll('[water-shader]');
-    console.log('💧 water-adapter: Nombre de couches d\'eau trouvées:', waterEntities.length);
-
+    // Update geometry for each layer but keep them hidden until startRise()
     waterEntities.forEach((entity, index) => {
-      // Utiliser setAttribute pour mettre à jour les dimensions du composant water-shader
       entity.setAttribute('water-shader', {
         width: width,
         depth: depth
       });
-      
-      // Rendre visible après dimensionnement
-      try { entity.setAttribute('visible', 'true'); } catch (e) {}
-      console.log(`💧 water-adapter: Couche ${index + 1} redimensionnée et affichée à ${width.toFixed(2)}m x ${depth.toFixed(2)}m`);
+      try { entity.setAttribute('visible', 'false'); } catch (e) {}
     });
   },
 
@@ -87,7 +84,7 @@ AFRAME.registerComponent('water-adapter', {
     const newPosition = `${centerX} ${floorY} ${centerZ}`;
     this.el.setAttribute('position', newPosition);
     
-    console.log('💧 water-adapter: Nouvelle position de l\'eau:', newPosition);
+    console.log('💧 water-adapter: New water position:', newPosition);
   },
 
   _updateAnimation: function() {
@@ -103,17 +100,46 @@ AFRAME.registerComponent('water-adapter', {
     // Position d'arrivée : hauteur de la pièce
     const to = `${centerX} ${floorY + height} ${centerZ}`;
 
-    // Mettre à jour l'animation
-    this.el.setAttribute('animation', {
-      property: 'position',
-      from: from,
-      to: to,
-      dur: 10000,
-      easing: 'easeInOutQuad'
-    });
-
-    console.log('💧 water-adapter: Animation mise à jour:', {from, to});
+    // For compatibility we compute and store the rise parameters; do not apply the animation yet.
+    this._riseParams = { property: 'position', from: from, to: to, dur: 10000, easing: 'easeInOutQuad' };
+    this._risePrepared = true;
   },
+
+  _prepareAnimationParams: function() {
+    if (!this.roomData) return;
+    const centerX = this.roomData.centerX;
+    const centerZ = this.roomData.centerZ;
+    const floorY = this.roomData.floorY;
+    const height = this.roomData.height || 2.5;
+    const from = `${centerX} ${floorY} ${centerZ}`;
+    const to = `${centerX} ${floorY + height} ${centerZ}`;
+    this._riseParams = { property: 'position', from: from, to: to, dur: 10000, easing: 'easeInOutQuad' };
+    this._risePrepared = true;
+  },
+
+  startRise: function() {
+    // Start the water rise animation (only once)
+    if (this._riseStarted) return;
+    this._riseStarted = true;
+
+    // Reveal water layers
+    const waterEntities = this.el.querySelectorAll('[water-shader]');
+    waterEntities.forEach((entity) => { try { entity.setAttribute('visible', 'true'); } catch (e) {} });
+
+    // Apply prepared animation params if available
+    if (this._riseParams) {
+      // Ensure any previous named animation is removed
+      try { this.el.removeAttribute('animation__rise'); } catch (e) {}
+      this.el.setAttribute('animation__rise', this._riseParams);
+    } else {
+      // Fallback animation
+      this.el.setAttribute('animation__rise', 'property: position; to: 0 2.5 -2; dur: 10000; easing: easeInOutQuad');
+    }
+
+    // Emit an event to indicate the rise started (useful if callers want to react)
+    try { this.el.emit('water-rise-started'); } catch (e) {}
+  },
+
 
   // Si la pièce a une rotation, on pourrait appliquer la rotation à l'eau
   // Mais pour un plan d'eau horizontal, ce n'est généralement pas nécessaire
@@ -125,7 +151,7 @@ AFRAME.registerComponent('water-adapter', {
       // Convertir radians en degrés
       const degrees = rotationY * (180 / Math.PI);
       this.el.setAttribute('rotation', `0 ${degrees} 0`);
-      console.log('💧 water-adapter: Rotation appliquée:', degrees.toFixed(2), '°');
+      console.log('💧 water-adapter: Rotation applied:', degrees.toFixed(2), '°');
     }
   }
 });
