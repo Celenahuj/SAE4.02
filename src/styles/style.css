@@ -76,6 +76,22 @@ canvas {
 .btn-restart { background: #FFD700; color: #000; }
 .btn-quit { background: transparent; color: #FFD700; }
 
+.btn-restart:hover {
+	background: #FFC700;
+	transform: scale(1.05);
+	box-shadow: 0 0 15px rgba(255, 215, 0, 0.7);
+}
+
+.btn-quit:hover {
+	background: rgba(255, 215, 0, 0.2);
+	transform: scale(1.05);
+}
+
+/* Timer warning pulse for low time */
+#timer-display.warning {
+	animation: pulse 0.5s infinite;
+}
+
 /* Timer display */
 #timer-display { position: fixed; top: 20px; right: 20px; font-size: 2em; color: #FFD700; font-weight: bold; background: rgba(0,0,0,0.7); padding: 15px 25px; border-radius: 10px; border: 2px solid #FFD700; z-index: 1000; font-family: 'Courier New', monospace; text-shadow: 0 0 10px rgba(255,215,0,0.7); }
 

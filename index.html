@@ -103,8 +103,36 @@
           </a-box>
         </a-entity>
 
-        <!-- End screen 3D -->
-        <a-entity id="end-screen-3d" position="0 0 -1.5" visible="false"></a-entity>
+        <!-- Écran de fin de jeu en 3D (copie depuis la branche score-challenge) -->
+        <a-entity id="end-screen-3d" position="0 0 -1.5" visible="false">
+          <!-- Fond du panneau -->
+          <a-plane color="#1a1a2e" opacity="0.95" width="1.2" height="1.6" position="0 0 -0.02" material="shader: flat"></a-plane>
+          <!-- Bordure dorée -->
+          <a-box color="#FFD700" width="1.2" height="0.02" depth="0.01" position="0 0.8 0"></a-box>
+          <a-box color="#FFD700" width="1.2" height="0.02" depth="0.01" position="0 -0.8 0"></a-box>
+          <a-box color="#FFD700" width="0.02" height="1.6" depth="0.01" position="-0.6 0 0"></a-box>
+          <a-box color="#FFD700" width="0.02" height="1.6" depth="0.01" position="0.6 0 0"></a-box>
+
+          <!-- Titre -->
+          <a-text value="🎣 FIN DE LA PARTIE 🎣" align="center" color="#FFD700" width="1.8" position="0 0.65 0"></a-text>
+          <a-text value="Poissons attrapés" align="center" color="#FFD700" width="1.5" position="0 0.52 0"></a-text>
+
+          <!-- Le tableau sera généré dynamiquement ici par populateScoreTable3D() -->
+          <a-entity id="dynamic-score-table-3d" position="0 0 0.01"></a-entity>
+
+          <!-- Boutons interactifs avec animations hover -->
+          <a-box id="btn-restart-3d" class="clickable" color="#FFD700" width="0.45" height="0.12" depth="0.03" position="-0.25 -0.65 0.02"
+                 animation__hover="property: scale; from: 1 1 1; to: 1.1 1.1 1.1; startEvents: mouseenter; dur: 200"
+                 animation__leave="property: scale; from: 1.1 1.1 1.1; to: 1 1 1; startEvents: mouseleave; dur: 200">
+            <a-text value="🔄 REJOUER" align="center" color="#000000" width="1.2" position="0 0 0.02"></a-text>
+          </a-box>
+
+          <a-box id="btn-quit-3d" class="clickable" color="#e74c3c" width="0.45" height="0.12" depth="0.03" position="0.25 -0.65 0.02"
+                 animation__hover="property: scale; from: 1 1 1; to: 1.1 1.1 1.1; startEvents: mouseenter; dur: 200"
+                 animation__leave="property: scale; from: 1.1 1.1 1.1; to: 1 1 1; startEvents: mouseleave; dur: 200">
+            <a-text value="❌ QUITTER" align="center" color="#ffffff" width="1.2" position="0 0 0.02"></a-text>
+          </a-box>
+        </a-entity>
 
       </a-camera>
     </a-entity>

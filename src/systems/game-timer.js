@@ -71,10 +71,17 @@
       const timerDisplay = document.getElementById('timer-display');
       if (timerDisplay) {
         timerDisplay.textContent = t;
-        timerDisplay.style.color = timeRemaining <= 10 ? '#e74c3c' : '#FFD700';
+        // Change to red when <= 15 seconds
+        timerDisplay.style.color = timeRemaining <= 15 ? '#e74c3c' : '#FFD700';
+        // Toggle warning class to enable pulse animation
+        if (timeRemaining <= 15) timerDisplay.classList.add('warning'); else timerDisplay.classList.remove('warning');
       }
       const timerText3D = document.querySelector('#timer-text');
-      if (timerText3D) timerText3D.setAttribute('value', t);
+      if (timerText3D) {
+        timerText3D.setAttribute('value', t);
+        // also change 3D text color when <= 15s
+        try { timerText3D.setAttribute('color', timeRemaining <= 15 ? '#e74c3c' : '#FFD700'); } catch (e) {}
+      }
     },
 
     addCaughtFish: function (fishType, isCorrect, points) {
