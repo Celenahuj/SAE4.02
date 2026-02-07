@@ -18,12 +18,16 @@ AFRAME.registerComponent('fish-movement', {
   init: function () {
     // Swimming state: velocity, target point, sway for a natural swim
     this.velocity = new THREE.Vector3(0, 0, 0);
-    // Slight random variation, but overall slower
-    this.speed = this.data.speed * (0.6 + Math.random() * 0.4);
+    // Slight random variation, but overall ultra-slow
+    // Reduce multiplier so fishes swim much slower for a calm scene
+    this.speed = this.data.speed * (0.002 + Math.random() * 0.001);
     this.bounds = this.data.bounds;
     this.target = new THREE.Vector3();
     this._pickNewTarget();
     this.swayPhase = Math.random() * Math.PI * 2;
+    // vertical bobbing parameters (per-fish for variation)
+    this.bobAmplitude = 0.02 + Math.random() * 0.06; // meters
+    this.bobOffset = Math.random() * Math.PI * 2;
 
     // Utiliser les données globales de la zone
     this.roomBounds = null;
@@ -391,6 +395,16 @@ AFRAME.registerComponent('fish-movement', {
     const lateral = new THREE.Vector3().crossVectors(this.velocity, new THREE.Vector3(0, 1, 0)).normalize();
     const sway = lateral.multiplyScalar(Math.sin(this.swayPhase) * 0.03);
 
+    // Vertical bobbing for natural up/down motion
+    const verticalBob = Math.sin(this.swayPhase * 0.9 + this.bobOffset) * this.bobAmplitude;
+
+    // Occasionally adjust target.y slightly so fish change cruising altitude over time
+    if (this.roomBounds && Math.random() < dt * 0.25) {
+      const minY = this.floorY + 0.2;
+      const maxY = this.ceilingY - 0.2;
+      this.target.y = Math.max(minY, Math.min(maxY, this.target.y + (Math.random() - 0.5) * 0.6));
+    }
+
     // Calculer la prochaine position
     const nextPos = pos.clone();
     nextPos.addScaledVector(this.velocity, dt);
@@ -411,6 +425,9 @@ AFRAME.registerComponent('fish-movement', {
       this.velocity.y += (Math.random() - 0.5) * 0.03;
       this.velocity.z += (Math.random() - 0.5) * 0.05;
     }
+
+    // Apply vertical bob before finalizing position
+    nextPos.y += verticalBob;
 
     // Appliquer la position finale
     pos.copy(nextPos);
@@ -446,13 +463,28 @@ AFRAME.registerComponent('fish-movement', {
 
     // Rotation douce pour faire face à la direction du mouvement
     if (this.velocity.lengthSq() > 0.0001) {
-      const lookTarget = pos.clone().add(this.velocity.clone());
-      // Capturer le quaternion actuel
+      // Contrainte: limiter l'inclinaison (pitch) pour éviter que le poisson se retourne
+      const maxPitch = Math.PI / 4; // 45° max up/down
+
+      // Compute desired direction from velocity
+      const vel = this.velocity.clone();
+      const horizLen = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
+
+      // If mostly vertical, prefer small horizontal component to avoid flip
+      const safeHoriz = Math.max(horizLen, 0.0001);
+      const maxY = Math.tan(maxPitch) * safeHoriz;
+
+      // Clamp vertical component to allowed pitch
+      const clampedY = Math.max(-maxY, Math.min(maxY, vel.y));
+      const constrainedDir = new THREE.Vector3(vel.x, clampedY, vel.z).normalize();
+
+      // Build a look target using constrained direction
+      const lookTarget = pos.clone().add(constrainedDir);
+
+      // Smoothly interpolate rotation towards constrained lookTarget
       const currentQuat = this.el.object3D.quaternion.clone();
-      // Définir temporairement lookAt pour calculer le quaternion cible
       this.el.object3D.lookAt(lookTarget);
       const targetQuat = this.el.object3D.quaternion.clone();
-      // Restaurer puis interpoler vers la cible pour une rotation douce
       this.el.object3D.quaternion.copy(currentQuat);
       this.el.object3D.quaternion.slerp(targetQuat, Math.min(1, dt * 4));
     }
@@ -661,7 +693,8 @@ AFRAME.registerComponent('fish-spawner', {
       } catch (e) {}
 
       // Add movement component (much slower for boxes)
-      const baseSpeed = 0.04 + Math.random() * 0.04; // 0.04 - 0.08
+      // Make fishes ultra-slow overall: range ~0.00002 - 0.00007
+      const baseSpeed = 0.00002 + Math.random() * 0.00005; // 0.00002 - 0.00007
       fish.setAttribute('fish-movement', `speed: ${baseSpeed}; bounds: ${this.data.area}`);
 
       parent.appendChild(fish);
