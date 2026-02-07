@@ -425,9 +425,9 @@ AFRAME.registerComponent('grab-manager', {
 
   tick: function () {
     if (!this.grabbedSpear || !this.grabbingHand) return;
-    
+
     const THREE = AFRAME.THREE;
-    
+
     // Get hand world position and rotation
     const handPos = new THREE.Vector3();
     const handQuat = new THREE.Quaternion();
@@ -446,18 +446,61 @@ AFRAME.registerComponent('grab-manager', {
     // update last hand pos/time for next tick
     this.lastHandPos = handPos.clone();
     this.lastHandTime = now;
-    
+
+    // Vérifier l'orientation de la main avec le vecteur UP
+    const handUp = new THREE.Vector3(0, 1, 0).applyQuaternion(handQuat);
+    const isFlipped = handUp.y < 0;
+
+    // Ajuster l'offset en fonction de la rotation (garde la main sur le manche)
+    let currentOffset = this.offset.clone();
+    if (isFlipped) {
+      currentOffset.set(0, 0, 0.2);
+    }
+
     // Apply offset in hand's local space
-    const offsetWorld = this.offset.clone().applyQuaternion(handQuat);
+    const offsetWorld = currentOffset.clone().applyQuaternion(handQuat);
     const targetPos = handPos.clone().add(offsetWorld);
-    
-    // Move spear to follow hand
-    this.grabbedSpear.object3D.position.copy(targetPos);
-    
-    // Rotate spear 180 degrees on Y axis to flip it
-    const flipRotation = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
-    this.grabbedSpear.object3D.quaternion.copy(handQuat).multiply(flipRotation);
-    
+
+    // Compute desired rotation: base on hand then flip on Y
+    const baseRotation = handQuat.clone();
+    const flipY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
+    baseRotation.multiply(flipY);
+    if (isFlipped) {
+      const flipX = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI);
+      baseRotation.multiply(flipX);
+    }
+
+    // If the grabbed entity has a physics body, update the body transform
+    const spear = this.grabbedSpear;
+    try {
+      if (spear.body) {
+        // many physics engines expose position.set(x,y,z)
+        if (spear.body.position && typeof spear.body.position.set === 'function') {
+          spear.body.position.set(targetPos.x, targetPos.y, targetPos.z);
+        } else if (spear.body.position) {
+          spear.body.position.x = targetPos.x; spear.body.position.y = targetPos.y; spear.body.position.z = targetPos.z;
+        }
+
+        // quaternion may be different shape (CANNON has .set), try setting if available
+        if (spear.body.quaternion && typeof spear.body.quaternion.set === 'function') {
+          spear.body.quaternion.set(baseRotation.x, baseRotation.y, baseRotation.z, baseRotation.w);
+        } else if (spear.body.quaternion) {
+          spear.body.quaternion.x = baseRotation.x; spear.body.quaternion.y = baseRotation.y; spear.body.quaternion.z = baseRotation.z; spear.body.quaternion.w = baseRotation.w;
+        } else {
+          // fallback to updating object3D
+          spear.object3D.position.copy(targetPos);
+          spear.object3D.quaternion.copy(baseRotation);
+        }
+      } else {
+        // No physics body: update object3D directly
+        spear.object3D.position.copy(targetPos);
+        spear.object3D.quaternion.copy(baseRotation);
+      }
+    } catch (e) {
+      // fallback: set object3D transforms
+      try { spear.object3D.position.copy(targetPos); spear.object3D.quaternion.copy(baseRotation); } catch (err) {}
+    }
+
     // Check collision with fish targets
     this.checkFishCollision();
   },
