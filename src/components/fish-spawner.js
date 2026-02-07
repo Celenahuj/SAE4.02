@@ -18,15 +18,14 @@ AFRAME.registerComponent('fish-movement', {
   init: function () {
     // Swimming state: velocity, target point, sway for a natural swim
     this.velocity = new THREE.Vector3(0, 0, 0);
-    // Slight random variation, but overall ultra-slow
-    // Reduce multiplier so fishes swim much slower for a calm scene
-    this.speed = this.data.speed * (0.002 + Math.random() * 0.001);
+    // Slight random variation, but overall very slow — increase a bit so fish can escape walls
+    this.speed = this.data.speed * (0.001 + Math.random() * 0.0006);
     this.bounds = this.data.bounds;
     this.target = new THREE.Vector3();
     this._pickNewTarget();
     this.swayPhase = Math.random() * Math.PI * 2;
-    // vertical bobbing parameters (per-fish for variation)
-    this.bobAmplitude = 0.02 + Math.random() * 0.06; // meters
+    // vertical bobbing parameters (per-fish for subtle variation)
+    this.bobAmplitude = 0.003 + Math.random() * 0.006; // meters (small)
     this.bobOffset = Math.random() * Math.PI * 2;
 
     // Utiliser les données globales de la zone
@@ -386,17 +385,17 @@ AFRAME.registerComponent('fish-movement', {
     // Direction désirée vers la cible
     const desired = this.target.clone().sub(pos).normalize();
 
-    // Ajuster progressivement la vélocité vers la direction désirée
+    // Ajuster progressivement la vélocité vers la direction désirée (lent mais réactif)
     const desiredVel = desired.multiplyScalar(this.speed);
-    this.velocity.lerp(desiredVel, Math.min(1, dt * 1.5));
+    this.velocity.lerp(desiredVel, Math.min(1, dt * 0.8));
 
-    // Ajouter un mouvement de nage latéral naturel (comme une queue de poisson)
-    this.swayPhase += dt * (1.2 + Math.random() * 0.8);
+    // Ajouter un mouvement de nage latéral naturel (subtil et lent)
+    this.swayPhase += dt * (0.35 + Math.random() * 0.2);
     const lateral = new THREE.Vector3().crossVectors(this.velocity, new THREE.Vector3(0, 1, 0)).normalize();
-    const sway = lateral.multiplyScalar(Math.sin(this.swayPhase) * 0.03);
+    const sway = lateral.multiplyScalar(Math.sin(this.swayPhase) * 0.01);
 
     // Vertical bobbing for natural up/down motion
-    const verticalBob = Math.sin(this.swayPhase * 0.9 + this.bobOffset) * this.bobAmplitude;
+    const verticalBob = Math.sin(this.swayPhase * 0.6 + this.bobOffset) * this.bobAmplitude;
 
     // Occasionally adjust target.y slightly so fish change cruising altitude over time
     if (this.roomBounds && Math.random() < dt * 0.25) {
@@ -419,11 +418,17 @@ AFRAME.registerComponent('fish-movement', {
     // Si collision, choisir une nouvelle cible aléatoire pour éviter de rester coincé
     if (wallHit || obstacleHit) {
       this._pickNewTarget();
-      
-      // Ajouter une petite perturbation aléatoire pour rendre le mouvement naturel
-      this.velocity.x += (Math.random() - 0.5) * 0.05;
-      this.velocity.y += (Math.random() - 0.5) * 0.03;
-      this.velocity.z += (Math.random() - 0.5) * 0.05;
+
+      // Ajouter une perturbation un peu plus significative pour éviter que le poisson reste collé
+      this.velocity.x += (Math.random() - 0.5) * 0.02;
+      this.velocity.y += (Math.random() - 0.5) * 0.01;
+      this.velocity.z += (Math.random() - 0.5) * 0.02;
+
+      // Appliquer une poussée dirigée vers la nouvelle cible pour pousser le poisson à s'éloigner du mur
+      try {
+        const push = this.target.clone().sub(pos).normalize().multiplyScalar(this.speed * 0.8);
+        this.velocity.add(push);
+      } catch (e) { /* ignore if target/pos invalid */ }
     }
 
     // Apply vertical bob before finalizing position
@@ -486,7 +491,7 @@ AFRAME.registerComponent('fish-movement', {
       this.el.object3D.lookAt(lookTarget);
       const targetQuat = this.el.object3D.quaternion.clone();
       this.el.object3D.quaternion.copy(currentQuat);
-      this.el.object3D.quaternion.slerp(targetQuat, Math.min(1, dt * 4));
+      this.el.object3D.quaternion.slerp(targetQuat, Math.min(1, dt * 1.6));
     }
   }
 });
@@ -547,6 +552,9 @@ AFRAME.registerComponent('fish-spawner', {
     }
     
     this.spawned = true;
+    // Track initial spawn metadata to avoid premature end-game detection
+    this._initialFishCount = this.data.count || 0;
+    this._spawnStartTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
     console.debug('✅ Flag spawned = true');
     
     const floorY = roomData.floorY || 0;
@@ -692,9 +700,9 @@ AFRAME.registerComponent('fish-spawner', {
         fish.setAttribute('data-fish-type', typeName);
       } catch (e) {}
 
-      // Add movement component (much slower for boxes)
-      // Make fishes ultra-slow overall: range ~0.00002 - 0.00007
-      const baseSpeed = 0.00002 + Math.random() * 0.00005; // 0.00002 - 0.00007
+      // Add movement component (slightly increased so fishes can escape walls)
+      // Make fishes ultra-slow overall but a bit faster than before: range ~0.00001 - 0.00003
+      const baseSpeed = 0.00001 + Math.random() * 0.00002; // 0.00001 - 0.00003
       fish.setAttribute('fish-movement', `speed: ${baseSpeed}; bounds: ${this.data.area}`);
 
       parent.appendChild(fish);
@@ -720,7 +728,13 @@ AFRAME.registerComponent('fish-spawner', {
       const checkAndEnd = () => {
         const remaining = (parent.querySelectorAll && parent.querySelectorAll('.fish-target')) ? parent.querySelectorAll('.fish-target').length : (this.fishes ? this.fishes.length : 0);
         if (this.el.sceneEl && this.el.sceneEl.is && this.el.sceneEl.is('debug')) console.debug('🐟 fish-spawner: remaining fish count =', remaining);
-        if (remaining === 0) {
+
+        // Avoid false positives right after spawn: require that the spawn has occurred and
+        // a short grace period elapsed before considering the game ended due to 0 fishes.
+        const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        const spawnAge = this._spawnStartTime ? (now - this._spawnStartTime) : Infinity;
+
+        if (remaining === 0 && this._initialFishCount > 0 && spawnAge > 1500) {
           // If game is active, end it (show recap like time end)
           if (window.gameTimer && window.gameTimer.isGameActive && window.gameTimer.isGameActive()) {
             try { window.gameTimer.endGame(); } catch (e) { console.warn('fish-spawner: failed to call endGame', e); }
