@@ -136,9 +136,9 @@ AFRAME.registerComponent('room-detection', {
       oldBox.parentNode.removeChild(oldBox);
     }
 
-    // Si on a le polygone du sol, calculer les VRAIS bounds à partir des vertices transformés
+    // Si on a le polygone du sol, l'utiliser pour une boîte précise
     if (data.floorPolygon && data.floorPolygon.length >= 3 && data.floorPose) {
-      this.createBoxFromPolygon(data);
+      this.createBoxFromPolygonAligned(data);
     } else {
       // Sinon, utiliser une box standard (mode test)
       this.createStandardBox(data);
@@ -223,24 +223,86 @@ AFRAME.registerComponent('room-detection', {
     data.orientedBox.matrix = matrix.clone();
     data.orientedBox.inverseMatrix = new THREE.Matrix4().copy(matrix).invert();
     
-    // Créer la box rouge ORIENTÉE comme le sol réel
+    // Créer la box rouge ALIGNÉE sur les axes mondiaux (sans rotation) pour correspondre au scan
+    const worldWidth = realMaxX - realMinX;
+    const worldDepth = realMaxZ - realMinZ;
+    const worldCenterX = (realMinX + realMaxX) / 2;
+    const worldCenterZ = (realMinZ + realMaxZ) / 2;
+    
     const box = document.createElement('a-box');
     box.setAttribute('id', 'spawn-zone-bounds');
-    box.setAttribute('position', `${centerLocal.x} ${data.floorY + height/2} ${centerLocal.z}`);
-    box.setAttribute('rotation', `0 ${rotationY} 0`);
-    box.setAttribute('width', width);
+    box.setAttribute('position', `${worldCenterX} ${data.floorY + height/2} ${worldCenterZ}`);
+    box.setAttribute('rotation', `0 0 0`);
+    box.setAttribute('width', worldWidth);
     box.setAttribute('height', height);
-    box.setAttribute('depth', depth);
+    box.setAttribute('depth', worldDepth);
     box.setAttribute('material', 'color: #ff0000; opacity: 0.12; transparent: true; wireframe: true; side: double');
     box.setAttribute('geometry', 'primitive: box');
     
-    console.log('📦 ZONE ROUGE créée avec rotation du sol :');
-    console.log(`   Position: (${centerLocal.x.toFixed(2)}, ${(data.floorY + height/2).toFixed(2)}, ${centerLocal.z.toFixed(2)})`);
-    console.log(`   Rotation Y: ${rotationY.toFixed(1)}°`);
-    console.log(`   Dimensions locales: ${width.toFixed(2)}m x ${depth.toFixed(2)}m`);
+    console.log('📦 ZONE ROUGE créée alignée sur les axes mondiaux :');
+    console.log(`   Position: (${worldCenterX.toFixed(2)}, ${(data.floorY + height/2).toFixed(2)}, ${worldCenterZ.toFixed(2)})`);
+    console.log(`   Rotation: 0° (alignée sur les axes)`);
+    console.log(`   Dimensions monde: ${worldWidth.toFixed(2)}m x ${worldDepth.toFixed(2)}m`);
     console.log(`   Bounds monde X: ${realMinX.toFixed(2)} à ${realMaxX.toFixed(2)}`);
     console.log(`   Bounds monde Z: ${realMinZ.toFixed(2)} à ${realMaxZ.toFixed(2)}`);
     console.log('   ✅ Poissons utiliseront bounds monde pour collisions');
+    
+    this.el.sceneEl.appendChild(box);
+  },
+
+  createBoxFromPolygonAligned: function(data) {
+    const polygon = data.floorPolygon;
+    const pose = data.floorPose;
+    const height = data.height;
+    
+    // Transformer tous les vertices avec la matrice du sol
+    const matrix = new THREE.Matrix4();
+    matrix.fromArray(pose.transform.matrix);
+    
+    // Calculer les bounds RÉELS en monde depuis le polygone transformé
+    let realMinX = Infinity, realMaxX = -Infinity;
+    let realMinZ = Infinity, realMaxZ = -Infinity;
+    
+    polygon.forEach(v => {
+      const vec = new THREE.Vector3(v.x, v.y, v.z);
+      vec.applyMatrix4(matrix);
+      
+      realMinX = Math.min(realMinX, vec.x);
+      realMaxX = Math.max(realMaxX, vec.x);
+      realMinZ = Math.min(realMinZ, vec.z);
+      realMaxZ = Math.max(realMaxZ, vec.z);
+    });
+    
+    // Mettre à jour les bounds pour les collisions
+    data.bounds = {
+      minX: realMinX,
+      maxX: realMaxX,
+      minZ: realMinZ,
+      maxZ: realMaxZ
+    };
+    
+    // Créer la box rouge ALIGNÉE sur les axes mondiaux
+    const worldWidth = realMaxX - realMinX;
+    const worldDepth = realMaxZ - realMinZ;
+    const worldCenterX = (realMinX + realMaxX) / 2;
+    const worldCenterZ = (realMinZ + realMaxZ) / 2;
+    
+    const box = document.createElement('a-box');
+    box.setAttribute('id', 'spawn-zone-bounds');
+    box.setAttribute('position', `${worldCenterX} ${data.floorY + height/2} ${worldCenterZ}`);
+    box.setAttribute('rotation', `0 0 0`);
+    box.setAttribute('width', worldWidth);
+    box.setAttribute('height', height);
+    box.setAttribute('depth', worldDepth);
+    box.setAttribute('material', 'color: #ff0000; opacity: 0.12; transparent: true; wireframe: true; side: double');
+    box.setAttribute('geometry', 'primitive: box');
+    box.setAttribute('visible', 'false'); // Masqué: le casque affiche déjà les vraies limites
+    
+    console.log('📦 ZONE ROUGE (masquée) créée depuis polygone :');
+    console.log(`   Position: (${worldCenterX.toFixed(2)}, ${(data.floorY + height/2).toFixed(2)}, ${worldCenterZ.toFixed(2)})`);
+    console.log(`   Dimensions monde: ${worldWidth.toFixed(2)}m x ${worldDepth.toFixed(2)}m`);
+    console.log(`   Bounds X: ${realMinX.toFixed(2)} à ${realMaxX.toFixed(2)}`);
+    console.log(`   Bounds Z: ${realMinZ.toFixed(2)} à ${realMaxZ.toFixed(2)}`);
     
     this.el.sceneEl.appendChild(box);
   },
@@ -355,6 +417,7 @@ AFRAME.registerComponent('room-detection', {
     box.setAttribute('depth', depth);
     box.setAttribute('material', 'color: #ff0000; opacity: 0.12; transparent: true; wireframe: true; side: double');
     box.setAttribute('geometry', 'primitive: box');
+    box.setAttribute('visible', 'false');
     
     console.log('📦 ZONE ROUGE créée (bounds du sol) :');
     console.log(`   Position: (${centerX.toFixed(2)}, ${(data.floorY + data.height/2).toFixed(2)}, ${centerZ.toFixed(2)})`);
@@ -1200,7 +1263,25 @@ AFRAME.registerComponent('room-detection', {
       });
       
       const floorData = largestFloor.data;
-      const floorBounds = floorData.bounds;
+      
+      // Calculer les bounds PRÉCIS depuis le polygone transformé
+      let floorBounds = { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity };
+      
+      if (floorData.polygon && floorData.pose) {
+        const matrix = new THREE.Matrix4();
+        matrix.fromArray(floorData.pose.transform.matrix);
+        
+        floorData.polygon.forEach(v => {
+          const vec = new THREE.Vector3(v.x, v.y, v.z);
+          vec.applyMatrix4(matrix);
+          floorBounds.minX = Math.min(floorBounds.minX, vec.x);
+          floorBounds.maxX = Math.max(floorBounds.maxX, vec.x);
+          floorBounds.minZ = Math.min(floorBounds.minZ, vec.z);
+          floorBounds.maxZ = Math.max(floorBounds.maxZ, vec.z);
+        });
+      } else if (floorData.bounds) {
+        floorBounds = floorData.bounds;
+      }
       
       // Utiliser les dimensions réelles du sol principal
       const width = floorBounds.maxX - floorBounds.minX;
@@ -1234,11 +1315,30 @@ AFRAME.registerComponent('room-detection', {
         orientedBox: null // Sera rempli par createBoxFromPolygon
       };
     } else {
-      // Fallback : utiliser les bounds globaux
-      const bounds = this.roomBounds;
+      // Fallback : utiliser les bounds du SOL uniquement (pas toute la pièce)
+      // Calculer les bounds à partir des floorPlanes si disponibles
+      let floorBoundsFromPlanes = null;
+      
+      if (this.floorPlanes.length > 0) {
+        floorBoundsFromPlanes = {
+          minX: Infinity, maxX: -Infinity,
+          minZ: Infinity, maxZ: -Infinity
+        };
+        
+        this.floorPlanes.forEach(({ data }) => {
+          if (data.bounds) {
+            floorBoundsFromPlanes.minX = Math.min(floorBoundsFromPlanes.minX, data.bounds.minX);
+            floorBoundsFromPlanes.maxX = Math.max(floorBoundsFromPlanes.maxX, data.bounds.maxX);
+            floorBoundsFromPlanes.minZ = Math.min(floorBoundsFromPlanes.minZ, data.bounds.minZ);
+            floorBoundsFromPlanes.maxZ = Math.max(floorBoundsFromPlanes.maxZ, data.bounds.maxZ);
+          }
+        });
+      }
+      
+      const bounds = floorBoundsFromPlanes || this.roomBounds;
       let width = bounds.maxX - bounds.minX;
       let depth = bounds.maxZ - bounds.minZ;
-      let height = bounds.maxY - bounds.minY;
+      let height = this.roomBounds.maxY - this.floorY;
 
       if (!isFinite(width) || width < 1) width = 6;
       if (!isFinite(depth) || depth < 1) depth = 6;
@@ -1253,7 +1353,7 @@ AFRAME.registerComponent('room-detection', {
       const centerZ = isFinite(bounds.minZ) && isFinite(bounds.maxZ)
         ? (bounds.minZ + bounds.maxZ) / 2 : -2;
 
-      console.log('📐 Dimensions (fallback - bounds globaux):');
+      console.log('📐 Dimensions (fallback - bounds du SOL):');
       console.log(`   - Largeur: ${width.toFixed(2)}m`);
       console.log(`   - Profondeur: ${depth.toFixed(2)}m`);
       console.log(`   - Hauteur: ${height.toFixed(2)}m`);
