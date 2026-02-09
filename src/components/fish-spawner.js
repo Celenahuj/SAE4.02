@@ -625,6 +625,14 @@ AFRAME.registerComponent('fish-spawner', {
       const rz = (Math.random() - 0.5) * 20;
       fish.setAttribute('rotation', `${rx} ${ry} ${rz}`);
 
+      // Ajouter animation de nage réaliste avec Three.js (valeurs réduites)
+      fish.setAttribute('realistic-swim', {
+        speed: 0.15 + Math.random() * 0.15,    // Vitesse réduite 0.15-0.3
+        amplitude: 0.01 + Math.random() * 0.01, // Amplitude très réduite 0.01-0.02
+        frequency: 1.5 + Math.random() * 0.5,   // Fréquence réduite
+        rotationSpeed: 0.15 + Math.random() * 0.15 // Rotation plus douce
+      });
+
       // Position aléatoire DANS la zone orientée ou les bounds
       let x, y, z;
       

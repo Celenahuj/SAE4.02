@@ -136,13 +136,59 @@ AFRAME.registerComponent('room-detection', {
       oldBox.parentNode.removeChild(oldBox);
     }
 
-    // Si on a le polygone du sol, l'utiliser pour une boîte précise
+    // Visualiser le VRAI contour du sol (polygone exact avec rotation)
     if (data.floorPolygon && data.floorPolygon.length >= 3 && data.floorPose) {
-      this.createBoxFromPolygonAligned(data);
+      this.createFloorPolygonVisualization(data); // Contour exact du sol
+      // Calculer quand même les bounds pour les collisions
+      this.calculateWorldBounds(data);
     } else {
       // Sinon, utiliser une box standard (mode test)
       this.createStandardBox(data);
     }
+  },
+  
+  calculateWorldBounds: function(data) {
+    const polygon = data.floorPolygon;
+    const pose = data.floorPose;
+    
+    console.log('🔄 calculateWorldBounds appelé avec:', {
+      polygonPresent: !!polygon,
+      polygonLength: polygon?.length || 0,
+      posePresent: !!pose
+    });
+    
+    const matrix = new THREE.Matrix4();
+    matrix.fromArray(pose.transform.matrix);
+    
+    // Calculer les bounds en monde ET transformer le polygone
+    let realMinX = Infinity, realMaxX = -Infinity;
+    let realMinZ = Infinity, realMaxZ = -Infinity;
+    const transformedPolygon = [];
+    
+    polygon.forEach(v => {
+      const vec = new THREE.Vector3(v.x, v.y, v.z);
+      vec.applyMatrix4(matrix);
+      transformedPolygon.push({ x: vec.x, y: vec.y, z: vec.z });
+      realMinX = Math.min(realMinX, vec.x);
+      realMaxX = Math.max(realMaxX, vec.x);
+      realMinZ = Math.min(realMinZ, vec.z);
+      realMaxZ = Math.max(realMaxZ, vec.z);
+    });
+    
+    data.bounds = {
+      minX: realMinX,
+      maxX: realMaxX,
+      minZ: realMinZ,
+      maxZ: realMaxZ
+    };
+    
+    // Stocker le polygone transformé pour les collisions précises
+    data.transformedPolygon = transformedPolygon;
+    
+    console.log('📐 Bounds monde calculés depuis polygone:');
+    console.log(`   X: ${realMinX.toFixed(2)} → ${realMaxX.toFixed(2)}`);
+    console.log(`   Z: ${realMinZ.toFixed(2)} → ${realMaxZ.toFixed(2)}`);
+    console.log(`   Polygone: ${transformedPolygon.length} points stockés pour collisions`);
   },
   
   createBoxFromPolygon: function(data) {
@@ -223,26 +269,22 @@ AFRAME.registerComponent('room-detection', {
     data.orientedBox.matrix = matrix.clone();
     data.orientedBox.inverseMatrix = new THREE.Matrix4().copy(matrix).invert();
     
-    // Créer la box rouge ALIGNÉE sur les axes mondiaux (sans rotation) pour correspondre au scan
-    const worldWidth = realMaxX - realMinX;
-    const worldDepth = realMaxZ - realMinZ;
-    const worldCenterX = (realMinX + realMaxX) / 2;
-    const worldCenterZ = (realMinZ + realMaxZ) / 2;
-    
+    // Créer la box rouge ORIENTÉE qui suit la rotation du sol
     const box = document.createElement('a-box');
     box.setAttribute('id', 'spawn-zone-bounds');
-    box.setAttribute('position', `${worldCenterX} ${data.floorY + height/2} ${worldCenterZ}`);
-    box.setAttribute('rotation', `0 0 0`);
-    box.setAttribute('width', worldWidth);
+    box.setAttribute('position', `${centerLocal.x} ${data.floorY + height/2} ${centerLocal.z}`);
+    box.setAttribute('rotation', `0 ${rotationY} 0`); // Rotation du sol détecté
+    box.setAttribute('width', width);  // Dimensions locales
     box.setAttribute('height', height);
-    box.setAttribute('depth', worldDepth);
+    box.setAttribute('depth', depth);
     box.setAttribute('material', 'color: #ff0000; opacity: 0.12; transparent: true; wireframe: true; side: double');
     box.setAttribute('geometry', 'primitive: box');
+    box.setAttribute('visible', 'true'); // 🔍 DEBUG: Visible pour comparer avec les limites Quest
     
-    console.log('📦 ZONE ROUGE créée alignée sur les axes mondiaux :');
-    console.log(`   Position: (${worldCenterX.toFixed(2)}, ${(data.floorY + height/2).toFixed(2)}, ${worldCenterZ.toFixed(2)})`);
-    console.log(`   Rotation: 0° (alignée sur les axes)`);
-    console.log(`   Dimensions monde: ${worldWidth.toFixed(2)}m x ${worldDepth.toFixed(2)}m`);
+    console.log('📦 ZONE ROUGE ORIENTÉE créée depuis polygone :');
+    console.log(`   Position: (${centerLocal.x.toFixed(2)}, ${(data.floorY + height/2).toFixed(2)}, ${centerLocal.z.toFixed(2)})`);
+    console.log(`   Rotation Y: ${rotationY.toFixed(1)}° (suit le sol détecté)`);
+    console.log(`   Dimensions locales: ${width.toFixed(2)}m x ${depth.toFixed(2)}m`);
     console.log(`   Bounds monde X: ${realMinX.toFixed(2)} à ${realMaxX.toFixed(2)}`);
     console.log(`   Bounds monde Z: ${realMinZ.toFixed(2)} à ${realMaxZ.toFixed(2)}`);
     console.log('   ✅ Poissons utiliseront bounds monde pour collisions');
@@ -296,7 +338,7 @@ AFRAME.registerComponent('room-detection', {
     box.setAttribute('depth', worldDepth);
     box.setAttribute('material', 'color: #ff0000; opacity: 0.12; transparent: true; wireframe: true; side: double');
     box.setAttribute('geometry', 'primitive: box');
-    box.setAttribute('visible', 'false'); // Masqué: le casque affiche déjà les vraies limites
+    box.setAttribute('visible', 'true'); // 🔍 DEBUG: Visible pour comparer avec les limites Quest
     
     console.log('📦 ZONE ROUGE (masquée) créée depuis polygone :');
     console.log(`   Position: (${worldCenterX.toFixed(2)}, ${(data.floorY + height/2).toFixed(2)}, ${worldCenterZ.toFixed(2)})`);
@@ -1382,7 +1424,15 @@ AFRAME.registerComponent('room-detection', {
       window.FISH_ZONE.orientedBox = roomData.orientedBox || null;
       window.FISH_ZONE.floorY = roomData.floorY;
       window.FISH_ZONE.ceilingY = roomData.floorY + roomData.height;
+      window.FISH_ZONE.floorPolygon = roomData.transformedPolygon || null; // Pour collisions précises
       window.FISH_ZONE.scanned = true;
+      
+      console.log('💾 window.FISH_ZONE mis à jour:', {
+        bounds: !!window.FISH_ZONE.roomBounds,
+        floorPolygon: window.FISH_ZONE.floorPolygon ? `${window.FISH_ZONE.floorPolygon.length} points` : 'NULL',
+        floorY: window.FISH_ZONE.floorY?.toFixed(2),
+        ceilingY: window.FISH_ZONE.ceilingY?.toFixed(2)
+      });
     }
 
     // Émettre l'événement avec les données (INCLURE orientedBox!)

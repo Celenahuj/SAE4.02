@@ -8,6 +8,10 @@ export default defineConfig({
     server: {
         https: true,  // Active HTTPS
         host: true,   // Expose sur le réseau local (pour Quest 3)
-        port: 5173
+        port: 5173,
+        hmr: {
+            protocol: 'wss',
+            clientPort: 5173
+        }
     }
 });
