@@ -4,15 +4,16 @@ AFRAME.registerComponent('fish-rotator', {
 
   init: function () {
     // list of models to rotate in the bonus panel: include all available fish
+    // Échelles ajustées pour une taille visuelle cohérente dans le panneau
     this.fishModels = [
-      // reduce goldfish for HUD clarity
-      { type: 'goldfish', model: '#goldfish', position: '0.05 0.02 0', rotation: '0 90 0', scale: '0.004 0.004 0.004' },
-      // slightly smaller piranha
-      { type: 'piranha', model: '#piranha', position: '0 -0.02 0', rotation: '0 90 0', scale: '0.008 0.008 0.008' },
-      // thon reduced
-      { type: 'thon', model: '#thon', position: '0 0 0', rotation: '0 90 0', scale: '0.006 0.006 0.006' },
-      // thon_bleu slightly enlarged
-      { type: 'thon_bleu', model: '#thon_bleu', position: '0 0 0', rotation: '0 90 0', scale: '0.012 0.012 0.012' },
+      // Goldfish - taille de référence
+      { type: 'goldfish', model: '#goldfish', position: '0 0.01 0', rotation: '0 90 0', scale: '0.002 0.002 0.002' },
+      // Piranha - augmenté significativement car modèle plus petit à la base, baissé en Y
+      { type: 'piranha', model: '#piranha', position: '0 -0.04 0', rotation: '0 90 0', scale: '0.018 0.018 0.018' },
+      // Thon - taille de référence
+      { type: 'thon', model: '#thon', position: '0 0 0', rotation: '0 90 0', scale: '0.0035 0.0035 0.0035' },
+      // Thon bleu - augmenté + décalé pour compenser le pivot vers la bouche
+      { type: 'thon_bleu', model: '#thon_bleu', position: '0.04 0 0', rotation: '0 90 0', scale: '0.025 0.025 0.025' },
       // starfish intentionally excluded from bonus rotation (not considered a target fish)
     ];
     this.currentIndex = 0;
