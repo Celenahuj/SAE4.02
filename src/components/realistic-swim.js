@@ -11,21 +11,6 @@ AFRAME.registerComponent('realistic-swim', {
     this.hadCollision = false; // Flag pour collision
     this.safetyMargin = 0.4; // 40cm de marge de sécurité
     
-    // 🔍 DEBUG: Afficher les bounds au démarrage
-    const bounds = window.FISH_ZONE?.roomBounds;
-    const polygon = window.FISH_ZONE?.floorPolygon;
-    if (bounds) {
-      console.log('🐟 Fish spawn - Bounds:', {
-        X: `${bounds.minX.toFixed(2)} → ${bounds.maxX.toFixed(2)} (${(bounds.maxX - bounds.minX).toFixed(2)}m)`,
-        Z: `${bounds.minZ.toFixed(2)} → ${bounds.maxZ.toFixed(2)} (${(bounds.maxZ - bounds.minZ).toFixed(2)}m)`,
-        Y: `${window.FISH_ZONE.floorY?.toFixed(2)} → ${window.FISH_ZONE.ceilingY?.toFixed(2)}`,
-        Polygon: polygon ? `${polygon.length} points` : 'NON',
-        Marge: `${this.safetyMargin * 100}cm`
-      });
-    } else {
-      console.warn('⚠️ realistic-swim: bounds non disponibles au init');
-    }
-    
     // Direction de nage simple (seulement horizontale au début)
     this.direction = new THREE.Vector3(
       (Math.random() - 0.5) * 2,
@@ -79,10 +64,11 @@ AFRAME.registerComponent('realistic-swim', {
     return inside;
   },
 
-  // Trouve le point le plus proche sur le bord du polygone
+  // Trouve le point le plus proche sur le bord du polygone et retourne aussi la normale
   getClosestPointOnPolygon: function(x, z, polygon) {
     let minDist = Infinity;
     let closestPoint = { x: x, z: z };
+    let segmentIndex = 0;
     
     for (let i = 0; i < polygon.length; i++) {
       const p1 = polygon[i];
@@ -106,10 +92,74 @@ AFRAME.registerComponent('realistic-swim', {
       if (dist < minDist) {
         minDist = dist;
         closestPoint = { x: projX, z: projZ };
+        segmentIndex = i;
       }
     }
     
-    return closestPoint;
+    return { point: closestPoint, segmentIndex: segmentIndex };
+  },
+
+  // Calcule la normale d'un segment de polygone (vers l'intérieur)
+  getSegmentNormal: function(polygon, segmentIndex) {
+    const p1 = polygon[segmentIndex];
+    const p2 = polygon[(segmentIndex + 1) % polygon.length];
+    
+    // Vecteur du segment
+    const dx = p2.x - p1.x;
+    const dz = p2.z - p1.z;
+    
+    // Normale perpendiculaire (rotation de 90° à gauche)
+    const normalX = -dz;
+    const normalZ = dx;
+    
+    // Normaliser
+    const len = Math.sqrt(normalX * normalX + normalZ * normalZ);
+    if (len === 0) return { x: 0, z: 0 };
+    
+    let nx = normalX / len;
+    let nz = normalZ / len;
+    
+    // Vérifier que la normale pointe vers l'intérieur
+    // On prend le centre du polygone comme référence
+    let centerX = 0, centerZ = 0;
+    polygon.forEach(p => {
+      centerX += p.x;
+      centerZ += p.z;
+    });
+    centerX /= polygon.length;
+    centerZ /= polygon.length;
+    
+    // Milieu du segment
+    const midX = (p1.x + p2.x) / 2;
+    const midZ = (p1.z + p2.z) / 2;
+    
+    // Vecteur du segment vers le centre
+    const toCenterX = centerX - midX;
+    const toCenterZ = centerZ - midZ;
+    
+    // Produit scalaire : si négatif, la normale pointe vers l'extérieur
+    const dot = nx * toCenterX + nz * toCenterZ;
+    if (dot < 0) {
+      nx = -nx;
+      nz = -nz;
+    }
+    
+    return { x: nx, z: nz };
+  },
+
+  // Réfléchit un vecteur direction par rapport à une normale (comme un rayon lumineux)
+  reflectDirection: function(dirX, dirZ, normalX, normalZ) {
+    // Formule de réflexion : R = V - 2(V·N)N
+    // où V est le vecteur incident et N la normale de la surface
+    const dotProduct = dirX * normalX + dirZ * normalZ;
+    const reflectedX = dirX - 2 * dotProduct * normalX;
+    const reflectedZ = dirZ - 2 * dotProduct * normalZ;
+    
+    // Normaliser le vecteur réfléchi
+    const len = Math.sqrt(reflectedX * reflectedX + reflectedZ * reflectedZ);
+    if (len === 0) return { x: -dirX, z: -dirZ }; // Rebond inverse par défaut
+    
+    return { x: reflectedX / len, z: reflectedZ / len };
   },
 
   tick: function (time, deltaTime) {
@@ -122,17 +172,6 @@ AFRAME.registerComponent('realistic-swim', {
     // Récupérer le polygone exact et les bounds
     const polygon = window.FISH_ZONE?.floorPolygon;
     const pos = this.el.object3D.position;
-    
-    // 🔍 DEBUG: Vérifier si le polygone est disponible (une fois toutes les 5 secondes)
-    if (!this.lastPolygonCheck || (time - this.lastPolygonCheck) > 5000) {
-      this.lastPolygonCheck = time;
-      if (!polygon || polygon.length === 0) {
-        console.error('❌ POLYGONE NON DISPONIBLE dans window.FISH_ZONE.floorPolygon !');
-        console.log('window.FISH_ZONE =', window.FISH_ZONE);
-      } else {
-        console.log(`✅ Polygone OK: ${polygon.length} points disponibles`);
-      }
-    }
     
     // 1. CALCULER le prochain mouvement (sans l'appliquer encore)
     const movement = this.direction.clone().multiplyScalar(this.data.speed * dt);
@@ -150,37 +189,36 @@ AFRAME.registerComponent('realistic-swim', {
       const distToEdge = isInside ? this.getDistanceToPolygonEdge(nextX, nextZ, polygon) : 0;
       
       if (!isInside || distToEdge < this.safetyMargin) {
-        console.log(`🛑 Collision: inside=${isInside}, distance=${distToEdge.toFixed(2)}m (min=${this.safetyMargin}m)`);
         canMove = false;
         this.hadCollision = true; // Marquer la collision immédiatement
         
-        // Calculer le centre du polygone
-        let centerX = 0, centerZ = 0;
-        polygon.forEach(p => {
-          centerX += p.x;
-          centerZ += p.z;
-        });
-        centerX /= polygon.length;
-        centerZ /= polygon.length;
+        // 🔬 RÉFLEXION COMME UN RAYON LUMINEUX
+        // Trouver le point le plus proche sur le polygone et le segment correspondant
+        const closestData = this.getClosestPointOnPolygon(nextX, nextZ, polygon);
+        const closest = closestData.point;
         
-        // Rediriger vers le centre
-        const toCenterX = centerX - pos.x;
-        const toCenterZ = centerZ - pos.z;
-        const centerDist = Math.sqrt(toCenterX * toCenterX + toCenterZ * toCenterZ);
+        // Calculer la normale du segment le plus proche (vers l'intérieur)
+        const normal = this.getSegmentNormal(polygon, closestData.segmentIndex);
         
-        if (centerDist > 0.001) {
-          this.direction.x = toCenterX / centerDist;
-          this.direction.z = toCenterZ / centerDist;
-          this.direction.y = 0;
-          this.direction.normalize();
-          
-          this.targetDirection.copy(this.direction);
-          this.changeDirectionTimer = Math.random() * 3000 + 2000;
-        }
+        // Réfléchir la direction actuelle par rapport à cette normale
+        const reflected = this.reflectDirection(
+          this.direction.x,
+          this.direction.z,
+          normal.x,
+          normal.z
+        );
+        
+        // Appliquer la nouvelle direction réfléchie
+        this.direction.x = reflected.x;
+        this.direction.z = reflected.z;
+        this.direction.y = 0;
+        this.direction.normalize();
+        
+        this.targetDirection.copy(this.direction);
+        this.changeDirectionTimer = Math.random() * 3000 + 2000;
       }
     } else {
       // 🚨 PAS DE POLYGONE : ne pas bouger pour éviter de sortir !
-      console.warn('⚠️ Polygone non disponible - mouvement bloqué par sécurité');
       canMove = false;
     }
     
@@ -196,8 +234,6 @@ AFRAME.registerComponent('realistic-swim', {
       const currentDist = currentInside ? this.getDistanceToPolygonEdge(pos.x, pos.z, polygon) : 0;
       
       if (!currentInside || currentDist < this.safetyMargin) {
-        console.error(`🚨 POISSON HORS ZONE ! inside=${currentInside}, dist=${currentDist.toFixed(2)}m - CORRECTION FORCÉE`);
-        
         // Calculer le centre
         let centerX = 0, centerZ = 0;
         polygon.forEach(p => {
@@ -211,26 +247,40 @@ AFRAME.registerComponent('realistic-swim', {
         if (!currentInside) {
           pos.x = centerX;
           pos.z = centerZ;
-          console.log('📍 Poisson téléporté au centre de la zone');
-        } else {
-          // Si juste trop proche du bord, le repousser vers le centre
-          const toCenterX = centerX - pos.x;
-          const toCenterZ = centerZ - pos.z;
-          const dist = Math.sqrt(toCenterX * toCenterX + toCenterZ * toCenterZ);
           
-          if (dist > 0.001) {
-            // Déplacer de 20cm vers le centre
-            pos.x += (toCenterX / dist) * 0.2;
-            pos.z += (toCenterZ / dist) * 0.2;
+          // Direction aléatoire après téléportation
+          this.direction.set(
+            (Math.random() - 0.5) * 2,
+            0,
+            (Math.random() - 0.5) * 2
+          ).normalize();
+          this.targetDirection.copy(this.direction);
+        } else {
+          // Si juste trop proche du bord, repousser ET réfléchir la direction
+          const closestData = this.getClosestPointOnPolygon(pos.x, pos.z, polygon);
+          const closest = closestData.point;
+          
+          // Repousser vers l'intérieur (20cm)
+          const pushX = pos.x - closest.x;
+          const pushZ = pos.z - closest.z;
+          const pushDist = Math.sqrt(pushX * pushX + pushZ * pushZ);
+          
+          if (pushDist > 0.001) {
+            pos.x = closest.x + (pushX / pushDist) * this.safetyMargin;
+            pos.z = closest.z + (pushZ / pushDist) * this.safetyMargin;
           }
-        }
-        
-        // Forcer la direction vers le centre
-        const toCenterX = centerX - pos.x;
-        const toCenterZ = centerZ - pos.z;
-        const centerDist = Math.sqrt(toCenterX * toCenterX + toCenterZ * toCenterZ);
-        if (centerDist > 0.001) {
-          this.direction.set(toCenterX / centerDist, 0, toCenterZ / centerDist);
+          
+          // Réfléchir la direction
+          const normal = this.getSegmentNormal(polygon, closestData.segmentIndex);
+          const reflected = this.reflectDirection(
+            this.direction.x,
+            this.direction.z,
+            normal.x,
+            normal.z
+          );
+          
+          this.direction.set(reflected.x, 0, reflected.z);
+          this.direction.normalize();
           this.targetDirection.copy(this.direction);
         }
       }
@@ -281,10 +331,6 @@ AFRAME.registerComponent('realistic-swim', {
         // Accepter la direction seulement si elle est sûre
         if (isInside && distToEdge >= this.safetyMargin) {
           this.targetDirection.copy(newDirection);
-          console.log('🎲 Nouvelle direction aléatoire acceptée (sûre)');
-        } else {
-          console.log('🚫 Direction aléatoire rejetée (pointerait vers un mur)');
-          // Garder la direction actuelle et réessayer plus tard
         }
       } else {
         // Pas de polygone, accepter la direction
