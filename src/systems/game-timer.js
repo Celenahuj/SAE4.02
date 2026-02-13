@@ -107,6 +107,20 @@
     endGame: function () {
       gameActive = false;
       if (timerInterval) clearInterval(timerInterval);
+      
+      // Sauvegarder le score dans le classement
+      try {
+        if (window.leaderboardManager && window.leaderboardManager.getPlayerName) {
+          const playerName = window.leaderboardManager.getPlayerName();
+          if (playerName && playerName !== '') {
+            window.leaderboardManager.addScore(playerName, totalScore);
+            console.log(`💾 Score sauvegardé pour ${playerName}: ${totalScore} points`);
+          }
+        }
+      } catch (e) {
+        console.warn('Erreur lors de la sauvegarde du score:', e);
+      }
+      
       console.log('🏁 Game ended!');
       this.showEndGameScreen();
     },

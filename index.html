@@ -24,13 +24,24 @@
   <script src="src/components/fish-spawner.js"></script>
   <script src="src/components/room-detection.js"></script>
   <script src="src/systems/game-timer.js"></script>
+  <script src="src/systems/leaderboard-manager.js"></script>
 </head>
 
 <body>
+  <!-- Écran de saisie du nom du joueur (avant de lancer le AR) -->
+  <div id="player-name-screen">
+    <div class="player-name-container">
+      <h1>🎣 Spearfisher 🎣</h1>
+      <p>Entrez votre nom pour commencer</p>
+      <input type="text" id="player-name-input" placeholder="Votre nom" maxlength="20">
+      <button id="btn-start-game" class="btn-primary">Commencer</button>
+    </div>
+  </div>
+
   <!-- Chronomètre en jeu (HTML overlay pour PC) -->
   <div id="timer-display" style="display:none;">1:00</div>
   <!-- Bouton pour entrer en mode AR -->
-  <div id="ar-overlay">
+  <div id="ar-overlay" style="display:none;">
     <button id="ar-button">Enter AR 🥽</button>
   </div>
 
@@ -50,8 +61,31 @@
       </div>
 
       <div class="end-game-buttons">
-        <button class="btn-end btn-restart" id="btn-restart">Play Again</button>
-        <button class="btn-end btn-quit" id="btn-quit">Quit</button>
+        <button class="btn-end btn-restart" id="btn-restart">Rejouer</button>
+        <button class="btn-end btn-leaderboard" id="btn-leaderboard">Classement</button>
+        <button class="btn-end btn-quit" id="btn-quit">Quitter</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaderboard Screen -->
+  <div id="leaderboard-screen">
+    <div class="leaderboard-container">
+      <div class="leaderboard-header">
+        <h1>🏆 Classement 🏆</h1>
+        <h2>Top 10 Joueurs</h2>
+      </div>
+
+      <div class="score-table-wrapper">
+        <table id="leaderboard-table">
+          <thead><tr><th>#</th><th>Joueur</th><th>Score</th></tr></thead>
+          <tbody id="leaderboard-table-body"></tbody>
+        </table>
+      </div>
+
+      <div class="end-game-buttons">
+        <button class="btn-end btn-restart" id="btn-leaderboard-restart">Rejouer</button>
+        <button class="btn-end btn-quit" id="btn-leaderboard-quit">Menu Principal</button>
       </div>
     </div>
   </div>
@@ -130,17 +164,23 @@
           <!-- Le tableau sera généré dynamiquement ici par populateScoreTable3D() -->
           <a-entity id="dynamic-score-table-3d" position="0 0 0.01"></a-entity>
 
-          <!-- Boutons interactifs avec animations hover -->
-          <a-box id="btn-restart-3d" class="clickable" color="#FFD700" width="0.45" height="0.12" depth="0.03" position="-0.25 -0.65 0.02"
+          <!-- Boutons interactifs avec animations hover (3 boutons alignés) -->
+          <a-box id="btn-restart-3d" class="clickable" color="#FFD700" width="0.35" height="0.12" depth="0.03" position="-0.4 -0.65 0.02"
                  animation__hover="property: scale; from: 1 1 1; to: 1.1 1.1 1.1; startEvents: mouseenter; dur: 200"
                  animation__leave="property: scale; from: 1.1 1.1 1.1; to: 1 1 1; startEvents: mouseleave; dur: 200">
-            <a-text value="🔄 REJOUER" align="center" color="#000000" width="1.2" position="0 0 0.02"></a-text>
+            <a-text value="🔄 REJOUER" align="center" color="#000000" width="1.4" position="0 0 0.02"></a-text>
           </a-box>
 
-          <a-box id="btn-quit-3d" class="clickable" color="#e74c3c" width="0.45" height="0.12" depth="0.03" position="0.25 -0.65 0.02"
+          <a-box id="btn-leaderboard-3d" class="clickable" color="#4169E1" width="0.35" height="0.12" depth="0.03" position="0 -0.65 0.02"
                  animation__hover="property: scale; from: 1 1 1; to: 1.1 1.1 1.1; startEvents: mouseenter; dur: 200"
                  animation__leave="property: scale; from: 1.1 1.1 1.1; to: 1 1 1; startEvents: mouseleave; dur: 200">
-            <a-text value="❌ QUITTER" align="center" color="#ffffff" width="1.2" position="0 0 0.02"></a-text>
+            <a-text value="🏆 CLASSEMENT" align="center" color="#ffffff" width="1.2" position="0 0 0.02"></a-text>
+          </a-box>
+
+          <a-box id="btn-quit-3d" class="clickable" color="#e74c3c" width="0.35" height="0.12" depth="0.03" position="0.4 -0.65 0.02"
+                 animation__hover="property: scale; from: 1 1 1; to: 1.1 1.1 1.1; startEvents: mouseenter; dur: 200"
+                 animation__leave="property: scale; from: 1.1 1.1 1.1; to: 1 1 1; startEvents: mouseleave; dur: 200">
+            <a-text value="❌ QUITTER" align="center" color="#ffffff" width="1.4" position="0 0 0.02"></a-text>
           </a-box>
         </a-entity>
 
@@ -201,28 +241,6 @@
   </a-scene>
 
   <script src="src/systems/game-manager.js"></script>
-  <script>
-    // End-game overlay buttons
-    (function () {
-      const restart = document.getElementById('btn-restart');
-      const quit = document.getElementById('btn-quit');
-      const endScreen = document.getElementById('end-game-screen');
-      if (restart) restart.addEventListener('click', () => {
-        try {
-          if (window.gameTimer && window.gameTimer.resetGame) window.gameTimer.resetGame();
-          // small delay then start a fresh game (default 60s)
-          setTimeout(() => { try { if (window.gameTimer && window.gameTimer.startGame) window.gameTimer.startGame(60); } catch(e){} }, 200);
-        } catch (e) { console.warn('restart click error', e); }
-      });
-      if (quit) quit.addEventListener('click', () => {
-        try {
-          if (window.gameTimer && window.gameTimer.resetGame) window.gameTimer.resetGame();
-        } catch (e) {}
-        // Reload page as a simple quit action to return to the launcher state
-        try { window.location.reload(); } catch (e) { if (endScreen) endScreen.style.display = 'none'; }
-      });
-    })();
-  </script>
 </body>
 
 </html>

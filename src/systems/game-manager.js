@@ -126,14 +126,42 @@
     }
 
     const btnRestart = document.getElementById('btn-restart');
-    if (btnRestart) btnRestart.addEventListener('click', () => { if (window.gameTimer && window.gameTimer.resetGame) { window.gameTimer.resetGame(); window.gameTimer.startGame(60); } });
+    if (btnRestart) btnRestart.addEventListener('click', () => { 
+      if (window.gameTimer && window.gameTimer.resetGame) { 
+        window.gameTimer.resetGame(); 
+        setTimeout(() => {
+          if (window.gameTimer && window.gameTimer.startGame) window.gameTimer.startGame(60);
+        }, 200);
+      } 
+    });
+    
     const btnQuit = document.getElementById('btn-quit');
-    if (btnQuit) btnQuit.addEventListener('click', () => { if (window.gameTimer && window.gameTimer.resetGame) window.gameTimer.resetGame(); });
+    if (btnQuit) btnQuit.addEventListener('click', () => { 
+      try {
+        if (window.gameTimer && window.gameTimer.resetGame) window.gameTimer.resetGame();
+      } catch (e) {}
+      // Reload page to return to player name screen
+      window.location.reload();
+    });
 
     const btnRestart3D = document.querySelector('#btn-restart-3d');
-    if (btnRestart3D) btnRestart3D.addEventListener('click', () => { if (window.gameTimer && window.gameTimer.resetGame) { window.gameTimer.resetGame(); window.gameTimer.startGame(60); } });
+    if (btnRestart3D) btnRestart3D.addEventListener('click', () => { 
+      if (window.gameTimer && window.gameTimer.resetGame) { 
+        window.gameTimer.resetGame(); 
+        setTimeout(() => {
+          if (window.gameTimer && window.gameTimer.startGame) window.gameTimer.startGame(60);
+        }, 200);
+      } 
+    });
+    
     const btnQuit3D = document.querySelector('#btn-quit-3d');
-    if (btnQuit3D) btnQuit3D.addEventListener('click', () => { if (window.gameTimer && window.gameTimer.resetGame) window.gameTimer.resetGame(); });
+    if (btnQuit3D) btnQuit3D.addEventListener('click', () => { 
+      try {
+        if (window.gameTimer && window.gameTimer.resetGame) window.gameTimer.resetGame();
+      } catch (e) {}
+      // Reload page to return to player name screen
+      window.location.reload();
+    });
   }
 
   if (document.readyState === 'complete' || document.readyState === 'interactive') initGameUI(); else document.addEventListener('DOMContentLoaded', initGameUI);

@@ -92,7 +92,212 @@ canvas {
 	animation: pulse 0.5s infinite;
 }
 
+@keyframes pulse {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.5; }
+}
+
 /* Timer display */
 #timer-display { position: fixed; top: 20px; right: 20px; font-size: 2em; color: #FFD700; font-weight: bold; background: rgba(0,0,0,0.7); padding: 15px 25px; border-radius: 10px; border: 2px solid #FFD700; z-index: 1000; font-family: 'Courier New', monospace; text-shadow: 0 0 10px rgba(255,215,0,0.7); }
 
+/* Player name screen (shown before AR start) */
+#player-name-screen {
+	display: flex;
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+	z-index: 10001;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	animation: fadeIn 0.5s ease-in;
+}
 
+.player-name-container {
+	background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+	border: 3px solid #FFD700;
+	border-radius: 20px;
+	padding: 40px 60px;
+	text-align: center;
+	box-shadow: 0 0 40px rgba(255, 215, 0, 0.6);
+	max-width: 500px;
+	width: 90%;
+}
+
+.player-name-container h1 {
+	font-size: 3em;
+	margin: 0 0 10px 0;
+	color: #FFD700;
+	text-shadow: 0 0 15px rgba(255, 215, 0, 0.8);
+}
+
+.player-name-container p {
+	font-size: 1.3em;
+	color: #ffffff;
+	margin-bottom: 25px;
+}
+
+#player-name-input {
+	width: 100%;
+	padding: 15px;
+	font-size: 1.2em;
+	border: 2px solid #FFD700;
+	border-radius: 8px;
+	background: rgba(255, 255, 255, 0.1);
+	color: #ffffff;
+	text-align: center;
+	margin-bottom: 20px;
+	transition: all 0.3s ease;
+}
+
+#player-name-input:focus {
+	outline: none;
+	background: rgba(255, 255, 255, 0.15);
+	box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+}
+
+#player-name-input::placeholder {
+	color: rgba(255, 255, 255, 0.5);
+}
+
+.btn-primary {
+	padding: 15px 40px;
+	font-size: 1.3em;
+	background: #FFD700;
+	color: #000;
+	border: none;
+	border-radius: 10px;
+	cursor: pointer;
+	font-weight: bold;
+	transition: all 0.3s ease;
+	width: 100%;
+}
+
+.btn-primary:hover {
+	background: #FFC700;
+	transform: scale(1.05);
+	box-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+}
+
+.btn-primary:disabled {
+	background: #666;
+	cursor: not-allowed;
+	opacity: 0.5;
+}
+
+/* Leaderboard screen */
+#leaderboard-screen {
+	display: none;
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.95);
+	z-index: 10002;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	padding: 20px;
+	animation: fadeIn 0.5s ease-in;
+}
+
+.leaderboard-container {
+	background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+	border: 3px solid #FFD700;
+	border-radius: 15px;
+	padding: 30px;
+	max-width: 90%;
+	width: 100%;
+	max-height: 90vh;
+	overflow-y: auto;
+	box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+}
+
+.leaderboard-header {
+	text-align: center;
+	margin-bottom: 30px;
+	color: #FFD700;
+}
+
+.leaderboard-header h1 {
+	font-size: 2.5em;
+	margin: 0 0 10px 0;
+	text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+}
+
+.leaderboard-header h2 {
+	font-size: 1.3em;
+	color: #FFD700;
+	margin: 0;
+	text-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+}
+
+#leaderboard-table {
+	width: 100%;
+	border-collapse: collapse;
+	background: rgba(255, 255, 255, 0.05);
+	border-radius: 8px;
+	overflow: hidden;
+}
+
+#leaderboard-table thead {
+	background: rgba(255, 215, 0, 0.3);
+	color: #FFD700;
+	font-weight: bold;
+}
+
+#leaderboard-table th {
+	padding: 15px;
+	text-align: center;
+	border-bottom: 2px solid #FFD700;
+	font-size: 1.1em;
+}
+
+#leaderboard-table td {
+	padding: 12px 15px;
+	color: #ffffff;
+	text-align: center;
+	border-bottom: 1px solid rgba(255, 215, 0, 0.2);
+	font-size: 1em;
+}
+
+#leaderboard-table tbody tr:hover {
+	background: rgba(255, 215, 0, 0.1);
+	transition: background 0.3s ease;
+}
+
+#leaderboard-table tbody tr:nth-child(1) td:first-child {
+	color: #FFD700;
+	font-size: 1.5em;
+}
+
+#leaderboard-table tbody tr:nth-child(2) td:first-child {
+	color: #C0C0C0;
+	font-size: 1.3em;
+}
+
+#leaderboard-table tbody tr:nth-child(3) td:first-child {
+	color: #CD7F32;
+	font-size: 1.2em;
+}
+
+#leaderboard-table tbody tr.current-player {
+	background: rgba(255, 215, 0, 0.2);
+	border: 2px solid #FFD700;
+	font-weight: bold;
+	color: #FFD700;
+}
+
+.btn-leaderboard {
+	background: #4169E1;
+	color: #ffffff;
+}
+
+.btn-leaderboard:hover {
+	background: #3151B5;
+	transform: scale(1.05);
+}
