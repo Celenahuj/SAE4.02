@@ -276,7 +276,7 @@
     const startButton = document.getElementById('btn-start-game');
     const playerNameInput = document.getElementById('player-name-input');
     const playerNameScreen = document.getElementById('player-name-screen');
-    const arOverlay = document.getElementById('ar-overlay');
+    const weaponChoiceScreen = document.getElementById('weapon-choice-screen');
 
     if (startButton && playerNameInput) {
       startButton.addEventListener('click', () => {
@@ -293,8 +293,11 @@
         // Masquer l'écran de saisie du nom
         if (playerNameScreen) playerNameScreen.style.display = 'none';
 
-        // Afficher le bouton AR
-        if (arOverlay) arOverlay.style.display = 'flex';
+        // Afficher l'écran de choix d'arme (nouvelle étape)
+        if (weaponChoiceScreen) {
+          weaponChoiceScreen.style.display = 'flex';
+          console.log('🗡️ Affichage de l\'écran de choix d\'arme');
+        }
 
         console.log('✅ Nom du joueur enregistré:', name);
       });

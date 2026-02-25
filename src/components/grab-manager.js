@@ -79,7 +79,7 @@ AFRAME.registerComponent('grab-manager', {
   },
 
   init: function () {
-    this.grabRadius = 0.4; // meters
+    this.grabRadius = 0.6; // meters (augmenté pour faciliter l'attrapage)
     this.grabbedSpear = null;
     this.grabbingHand = null;
     this.offset = new AFRAME.THREE.Vector3(0, 0, -0.2);

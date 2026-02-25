@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test Trident Model</title>
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+</head>
+<body>
+  <a-scene>
+    <a-assets>
+      <a-asset-item id="trident-model" src="assets/models/Trident.glb"></a-asset-item>
+      <a-asset-item id="spear-model" src="assets/models/stylized_low-poly_spear.glb"></a-asset-item>
+    </a-assets>
+
+    <a-entity position="0 1.6 -3">
+      <a-entity id="test-trident" 
+                gltf-model="#trident-model" 
+                position="0 0 0" 
+                scale="1 1 1"
+                rotation="0 90 0">
+      </a-entity>
+      
+      <a-text value="Trident (échelle 1.0)" 
+              position="0 -0.5 0" 
+              align="center" 
+              color="#FFD700" 
+              scale="2 2 2">
+      </a-text>
+    </a-entity>
+
+    <a-entity position="2 1.6 -3">
+      <a-entity id="test-spear" 
+                gltf-model="#spear-model" 
+                position="0 0 0" 
+                scale="0.5 0.5 0.5"
+                rotation="0 90 0">
+      </a-entity>
+      
+      <a-text value="Harpon (échelle 0.5)" 
+              position="0 -0.5 0" 
+              align="center" 
+              color="#00FF00" 
+              scale="2 2 2">
+      </a-text>
+    </a-entity>
+
+    <a-sky color="#0066aa"></a-sky>
+    <a-light type="ambient" intensity="0.8"></a-light>
+    <a-light type="directional" position="1 1 1" intensity="0.5"></a-light>
+
+    <a-camera>
+      <a-cursor></a-cursor>
+    </a-camera>
+  </a-scene>
+
+  <div style="position: fixed; bottom: 20px; left: 20px; background: rgba(0,0,0,0.8); color: white; padding: 20px; border-radius: 10px; font-family: monospace; max-width: 400px;">
+    <h3 style="margin: 0 0 10px 0; color: #FFD700;">🔧 Test des Modèles 3D</h3>
+    <p style="margin: 5px 0; font-size: 14px;">
+      Ce test affiche le <span style="color: #FFD700;">Trident</span> à gauche et le <span style="color: #00FF00;">Harpon</span> à droite.
+    </p>
+    <p style="margin: 5px 0; font-size: 14px;">
+      Ouvrez la console (F12) pour voir les erreurs de chargement.
+    </p>
+    <p style="margin: 5px 0; font-size: 14px;">
+      Si le Trident n'apparaît pas, vérifiez :
+    </p>
+    <ul style="margin: 5px 0; padding-left: 20px; font-size: 12px;">
+      <li>Le fichier Trident.glb existe dans assets/models/</li>
+      <li>Le fichier n'est pas corrompu</li>
+      <li>Il n'y a pas d'erreur dans la console</li>
+    </ul>
+  </div>
+
+  <script>
+    console.log('🧪 Test de chargement des modèles');
+    
+    setTimeout(() => {
+      const tridentEntity = document.querySelector('#test-trident');
+      const spearEntity = document.querySelector('#test-spear');
+      
+      console.log('Trident composant:', tridentEntity.components['gltf-model']);
+      console.log('Trident model chargé:', !!tridentEntity.components['gltf-model']?.model);
+      
+      console.log('Spear composant:', spearEntity.components['gltf-model']);
+      console.log('Spear model chargé:', !!spearEntity.components['gltf-model']?.model);
+      
+      // Vérifier les assets
+      const assets = document.querySelector('a-assets');
+      const allAssets = assets.querySelectorAll('a-asset-item');
+      console.log('Assets chargés:');
+      allAssets.forEach(asset => {
+        console.log(`  - ${asset.id}: ${asset.getAttribute('src')}`);
+      });
+    }, 3000);
+  </script>
+</body>
+</html>

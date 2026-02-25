@@ -23,8 +23,10 @@
   <script src="src/components/coral-placer.js"></script>
   <script src="src/components/fish-spawner.js"></script>
   <script src="src/components/room-detection.js"></script>
+  <script src="src/components/weapon-debug-panel.js"></script>
   <script src="src/systems/game-timer.js"></script>
   <script src="src/systems/leaderboard-manager.js"></script>
+  <script src="src/systems/weapon-manager.js"></script>
 </head>
 
 <body>
@@ -35,6 +37,36 @@
       <p>Entrez votre nom pour commencer</p>
       <input type="text" id="player-name-input" placeholder="Votre nom" maxlength="20">
       <button id="btn-start-game" class="btn-primary">Commencer</button>
+    </div>
+  </div>
+
+  <!-- Écran de choix d'arme (après le nom du joueur) -->
+  <div id="weapon-choice-screen" style="display:none;">
+    <div class="weapon-choice-container">
+      <h1>⚔️ Choisissez votre arme ⚔️</h1>
+      <p>Sélectionnez l'arme avec laquelle vous allez chasser</p>
+      
+      <div class="weapons-grid">
+        <div class="weapon-card" data-weapon="spear">
+          <div class="weapon-icon">🔱</div>
+          <h3>Harpon</h3>
+          <p class="weapon-desc">Classique et efficace</p>
+        </div>
+        
+        <div class="weapon-card" data-weapon="trident">
+          <div class="weapon-icon">🔱</div>
+          <h3>Trident</h3>
+          <p class="weapon-desc">Triple puissance</p>
+        </div>
+        
+        <div class="weapon-card" data-weapon="harpoon">
+          <div class="weapon-icon">➳</div>
+          <h3>Flèche</h3>
+          <p class="weapon-desc">Rapide et précise</p>
+        </div>
+      </div>
+      
+      <button id="btn-validate-weapon" class="btn-primary" disabled>Valider et Plonger</button>
     </div>
   </div>
 
@@ -99,6 +131,10 @@
 
     <a-assets>
       <a-asset-item id="spear-model" src="assets/models/stylized_low-poly_spear.glb"></a-asset-item>
+      <!-- Modèles d'armes additionnels -->
+      <a-asset-item id="trident-model" src="assets/models/trident-2.glb"></a-asset-item>
+      <a-asset-item id="harpoon-model" src="assets/models/stylized_low-poly_spear.glb"></a-asset-item>
+      
       <a-asset-item id="goldfish" src="assets/models/Goldfish.glb"></a-asset-item>
       <a-asset-item id="piranha" src="assets/models/Piranha.glb"></a-asset-item>
       <a-asset-item id="thon" src="assets/models/thon.glb"></a-asset-item>
@@ -112,6 +148,12 @@
     <!-- Camera HUD: bonus target, score and 3D timer -->
     <a-entity id="cameraRig">
       <a-camera id="head" look-controls>
+        <!-- Panneau de debug pour voir les infos de l'arme dans le casque -->
+        <a-entity id="weapon-debug" 
+                  weapon-debug-panel 
+                  position="0.8 -0.3 -1.2" 
+                  rotation="0 -15 0">
+        </a-entity>
         <!-- Effet sous l'eau : sphère bleue semi-transparente autour de la caméra -->
         <a-sphere radius="8" color="#0088cc" opacity="0.15" material="transparent: true; side: back; shader: flat"></a-sphere>
         
@@ -197,14 +239,14 @@
       <!-- Lumière bleutée sous l'eau -->
       <a-light type="point" color="#0088ff" intensity="0.5" position="0 0.5 -2"></a-light>
 
-      <!-- Spear model (replace the blue cube) - grabbable -->
-      <a-entity id="spear" weapon position="0 1.45 -0.6" rotation="0 90 0" 
+      <!-- Spear model - grabbable weapon -->
+      <a-entity id="spear" weapon position="0 1.45 -0.8" rotation="0 90 0" 
             class="weapon"
-            geometry="primitive: box; width: 0.05; height: 0.05; depth: 0.6" 
-            material="color: #ff0000; opacity: 0.3; transparent: true"
-            gltf-model="#spear-model"
-            scale="0.5 0.5 0.5"
-            dynamic-body="mass:1">
+            geometry="primitive: box; width: 0.4; height: 0.4; depth: 1.5"
+            material="opacity: 0; transparent: true"
+            visible="true">
+        <!-- Conteneur pour le modèle 3D -->
+        <a-entity id="weapon-3d-model"></a-entity>
       </a-entity>
 
       <!-- Les poissons seront générés automatiquement par fish-spawner après le scan de la pièce -->

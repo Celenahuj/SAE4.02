@@ -36,6 +36,16 @@ canvas {
 	background: transparent !important;
 }
 
+/* S'assurer que la scène A-Frame ne bloque pas les overlays UI */
+a-scene {
+	z-index: 1;
+	pointer-events: auto;
+}
+
+canvas {
+	z-index: 1;
+}
+
 /* Additional UI styles from score-challenge branch (end-game screen, timer) */
 #start-game-button { display: none !important; }
 
@@ -300,4 +310,118 @@ canvas {
 .btn-leaderboard:hover {
 	background: #3151B5;
 	transform: scale(1.05);
+}
+
+/* Weapon choice screen */
+#weapon-choice-screen {
+	display: none;
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+	z-index: 10001;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	animation: fadeIn 0.5s ease-in;
+	pointer-events: auto;
+}
+
+/* Quand l'écran est visible */
+#weapon-choice-screen[style*="display: flex"],
+#weapon-choice-screen[style*="display:flex"] {
+	pointer-events: auto !important;
+}
+
+.weapon-choice-container {
+	background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+	border: 3px solid #FFD700;
+	border-radius: 20px;
+	padding: 40px 60px;
+	text-align: center;
+	box-shadow: 0 0 40px rgba(255, 215, 0, 0.6);
+	max-width: 700px;
+	width: 90%;
+}
+
+.weapon-choice-container h1 {
+	font-size: 2.5em;
+	margin: 0 0 10px 0;
+	color: #FFD700;
+	text-shadow: 0 0 15px rgba(255, 215, 0, 0.8);
+}
+
+.weapon-choice-container p {
+	font-size: 1.2em;
+	color: #ffffff;
+	margin-bottom: 30px;
+}
+
+.weapons-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+	gap: 20px;
+	margin-bottom: 30px;
+}
+
+.weapon-card {
+	background: rgba(255, 255, 255, 0.05);
+	border: 2px solid rgba(255, 215, 0, 0.3);
+	border-radius: 15px;
+	padding: 20px;
+	cursor: pointer;
+	transition: all 0.3s ease;
+	position: relative;
+	user-select: none;
+	pointer-events: auto;
+}
+
+.weapon-card:hover {
+	background: rgba(255, 255, 255, 0.1);
+	border-color: rgba(255, 215, 0, 0.6);
+	transform: translateY(-5px);
+	box-shadow: 0 5px 20px rgba(255, 215, 0, 0.3);
+}
+
+.weapon-card.selected {
+	background: rgba(255, 215, 0, 0.2);
+	border-color: #FFD700;
+	border-width: 3px;
+	box-shadow: 0 0 25px rgba(255, 215, 0, 0.6);
+}
+
+.weapon-card.selected::after {
+	content: '✓';
+	position: absolute;
+	top: 10px;
+	right: 10px;
+	background: #FFD700;
+	color: #000;
+	width: 30px;
+	height: 30px;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 1.2em;
+	font-weight: bold;
+}
+
+.weapon-icon {
+	font-size: 3em;
+	margin-bottom: 10px;
+}
+
+.weapon-card h3 {
+	color: #FFD700;
+	margin: 10px 0;
+	font-size: 1.3em;
+}
+
+.weapon-desc {
+	color: rgba(255, 255, 255, 0.7);
+	font-size: 0.9em;
+	margin: 0;
 }

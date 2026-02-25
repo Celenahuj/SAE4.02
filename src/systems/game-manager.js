@@ -66,7 +66,15 @@
         try {
           // 1) reveal the weapon
           const spear = document.querySelector('#spear');
-          if (spear) spear.setAttribute('visible', 'true');
+          if (spear) {
+            spear.setAttribute('visible', 'true');
+            console.log('🗡️ Arme rendue visible !');
+            console.log('   Position:', spear.getAttribute('position'));
+            console.log('   Modèle:', spear.getAttribute('gltf-model'));
+            console.log('   Échelle:', spear.getAttribute('scale'));
+          } else {
+            console.warn('⚠️ Arme #spear non trouvée lors du clic PLAY !');
+          }
 
           // 2) reveal water and start its rise animation; when complete -> spawn fishes and start game timer
           const water = document.querySelector('#water-surface');
