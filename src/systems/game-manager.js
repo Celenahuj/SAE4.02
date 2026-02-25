@@ -64,6 +64,13 @@
       start3D.addEventListener('click', () => {
         start3D.setAttribute('visible', 'false');
         try {
+          // Démarrage de la musique de fond
+          const bgMusic = document.querySelector('#background-music');
+          if (bgMusic && bgMusic.components.sound) {
+            bgMusic.components.sound.playSound();
+            console.log('🎵 Musique de fond démarrée');
+          }
+
           // 1) reveal the weapon
           const spear = document.querySelector('#spear');
           if (spear) {
@@ -139,6 +146,15 @@
         window.gameTimer.resetGame(); 
         setTimeout(() => {
           if (window.gameTimer && window.gameTimer.startGame) window.gameTimer.startGame(60);
+          // Relancer la musique depuis le début
+          const bgMusic = document.querySelector('#background-music');
+          if (bgMusic && bgMusic.components.sound) {
+            const soundComponent = bgMusic.components.sound;
+            if (soundComponent.sound && soundComponent.sound.source) {
+              soundComponent.sound.source.currentTime = 0;
+            }
+            soundComponent.playSound();
+          }
         }, 200);
       } 
     });
@@ -147,6 +163,9 @@
     if (btnQuit) btnQuit.addEventListener('click', () => { 
       try {
         if (window.gameTimer && window.gameTimer.resetGame) window.gameTimer.resetGame();
+        // Arrêter la musique
+        const bgMusic = document.querySelector('#background-music');
+        if (bgMusic && bgMusic.components.sound) bgMusic.components.sound.stopSound();
       } catch (e) {}
       // Reload page to return to player name screen
       window.location.reload();
@@ -158,6 +177,15 @@
         window.gameTimer.resetGame(); 
         setTimeout(() => {
           if (window.gameTimer && window.gameTimer.startGame) window.gameTimer.startGame(60);
+          // Relancer la musique depuis le début
+          const bgMusic = document.querySelector('#background-music');
+          if (bgMusic && bgMusic.components.sound) {
+            const soundComponent = bgMusic.components.sound;
+            if (soundComponent.sound && soundComponent.sound.source) {
+              soundComponent.sound.source.currentTime = 0;
+            }
+            soundComponent.playSound();
+          }
         }, 200);
       } 
     });
@@ -166,6 +194,9 @@
     if (btnQuit3D) btnQuit3D.addEventListener('click', () => { 
       try {
         if (window.gameTimer && window.gameTimer.resetGame) window.gameTimer.resetGame();
+        // Arrêter la musique
+        const bgMusic = document.querySelector('#background-music');
+        if (bgMusic && bgMusic.components.sound) bgMusic.components.sound.stopSound();
       } catch (e) {}
       // Reload page to return to player name screen
       window.location.reload();

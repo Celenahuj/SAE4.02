@@ -108,6 +108,17 @@
       gameActive = false;
       if (timerInterval) clearInterval(timerInterval);
       
+      // Arrêter la musique de fond
+      try {
+        const bgMusic = document.querySelector('#background-music');
+        if (bgMusic && bgMusic.components.sound) {
+          bgMusic.components.sound.stopSound();
+          console.log('🎵 Musique arrêtée');
+        }
+      } catch (e) {
+        console.warn('Erreur lors de l\'arrêt de la musique:', e);
+      }
+      
       // Sauvegarder le score dans le classement
       try {
         if (window.leaderboardManager && window.leaderboardManager.getPlayerName) {

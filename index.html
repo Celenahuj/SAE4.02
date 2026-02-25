@@ -23,7 +23,6 @@
   <script src="src/components/coral-placer.js"></script>
   <script src="src/components/fish-spawner.js"></script>
   <script src="src/components/room-detection.js"></script>
-  <script src="src/components/weapon-debug-panel.js"></script>
   <script src="src/systems/game-timer.js"></script>
   <script src="src/systems/leaderboard-manager.js"></script>
   <script src="src/systems/weapon-manager.js"></script>
@@ -140,7 +139,15 @@
       <a-asset-item id="thon" src="assets/models/thon.glb"></a-asset-item>
       <a-asset-item id="thon_bleu" src="assets/models/thon_bleu.glb"></a-asset-item>
       <a-asset-item id="starfish" src="assets/models/Starfish.glb"></a-asset-item>
+      
+      <!-- Musique de fond -->
+      <audio id="bg-music" src="assets/blackbox-black-box-drum-drum-drum-14105.mp3" preload="auto"></audio>
     </a-assets>
+
+    <!-- Musique de fond (démarre quand le jeu commence) -->
+    <a-entity id="background-music" 
+              sound="src: #bg-music; autoplay: false; loop: true; volume: 0.4" 
+              position="0 0 0"></a-entity>
 
     <!-- Ancre monde : tous les objets 3D sont enfants de cette entité pour rester fixes dans l'espace réel -->
     <a-entity id="world-anchor" fish-spawner="count: 12">
@@ -148,12 +155,6 @@
     <!-- Camera HUD: bonus target, score and 3D timer -->
     <a-entity id="cameraRig">
       <a-camera id="head" look-controls>
-        <!-- Panneau de debug pour voir les infos de l'arme dans le casque -->
-        <a-entity id="weapon-debug" 
-                  weapon-debug-panel 
-                  position="0.8 -0.3 -1.2" 
-                  rotation="0 -15 0">
-        </a-entity>
         <!-- Effet sous l'eau : sphère bleue semi-transparente autour de la caméra -->
         <a-sphere radius="8" color="#0088cc" opacity="0.15" material="transparent: true; side: back; shader: flat"></a-sphere>
         
@@ -243,7 +244,7 @@
       <a-entity id="spear" weapon position="0 1.45 -0.8" rotation="0 90 0" 
             class="weapon"
             geometry="primitive: box; width: 0.4; height: 0.4; depth: 1.5"
-            material="opacity: 0; transparent: true"
+            material="opacity: 0; transparent: true; shader: flat; depthWrite: false"
             visible="true">
         <!-- Conteneur pour le modèle 3D -->
         <a-entity id="weapon-3d-model"></a-entity>

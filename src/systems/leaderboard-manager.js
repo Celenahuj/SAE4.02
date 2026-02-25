@@ -351,6 +351,15 @@
           setTimeout(() => {
             try {
               if (window.gameTimer && window.gameTimer.startGame) window.gameTimer.startGame(60);
+              // Relancer la musique depuis le début
+              const bgMusic = document.querySelector('#background-music');
+              if (bgMusic && bgMusic.components.sound) {
+                const soundComponent = bgMusic.components.sound;
+                if (soundComponent.sound && soundComponent.sound.source) {
+                  soundComponent.sound.source.currentTime = 0;
+                }
+                soundComponent.playSound();
+              }
             } catch (e) {}
           }, 200);
         } catch (e) {
@@ -362,6 +371,13 @@
     const leaderboardQuitBtn = document.getElementById('btn-leaderboard-quit');
     if (leaderboardQuitBtn) {
       leaderboardQuitBtn.addEventListener('click', () => {
+        // Arrêter la musique avant de quitter
+        try {
+          const bgMusic = document.querySelector('#background-music');
+          if (bgMusic && bgMusic.components.sound) {
+            bgMusic.components.sound.stopSound();
+          }
+        } catch (e) {}
         // Retour au menu principal (recharger la page)
         window.location.reload();
       });
