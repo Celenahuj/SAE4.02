@@ -14,5 +14,13 @@ export default defineConfig({
             protocol: 'wss',
             clientPort: 5173
         }
+    },
+    build: {
+        rollupOptions: {
+            input: {
+                main: 'landing.html',
+                game: 'game.html'
+            }
+        }
     }
 });
