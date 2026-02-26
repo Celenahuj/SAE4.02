@@ -8,7 +8,8 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: write # Ajout des permissions d'écriture
     steps:
       - name: Checkout 🛎️
         uses: actions/checkout@v3
