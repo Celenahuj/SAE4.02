@@ -197,8 +197,31 @@
       const timerText3D = document.querySelector('#timer-text'); if (timerText3D) { timerText3D.setAttribute('value','1:00'); timerText3D.setAttribute('color','#FFD700'); }
       const scoreDisplayReset = document.querySelector('#score-display'); if (scoreDisplayReset) scoreDisplayReset.setAttribute('value','Fish: 0 | Points: 0');
       const grabManager = document.querySelector('[grab-manager]'); if (grabManager && grabManager.components && grabManager.components['grab-manager']) { grabManager.components['grab-manager'].fishCaught = 0; grabManager.components['grab-manager'].points = 0; }
-      const fishTargets = document.querySelectorAll('.fish-target'); fishTargets.forEach(f => { delete f.dataset.caught; f.setAttribute('visible', 'false'); });
-      console.log('🔄 Game reset');
+      
+      // Réinitialiser TOUS les poissons : les rendre visibles, repositionner, retirer l'état "caught"
+      const fishTargets = document.querySelectorAll('.fish-target, .fish'); 
+      fishTargets.forEach(f => { 
+        delete f.dataset.caught; 
+        f.setAttribute('visible', 'true'); 
+        
+        // Repositionner le poisson aléatoirement dans la zone de jeu
+        if (window.FISH_ZONE && window.FISH_ZONE.roomBounds) {
+          const bounds = window.FISH_ZONE.roomBounds;
+          const newPos = {
+            x: bounds.minX + Math.random() * (bounds.maxX - bounds.minX),
+            y: bounds.minY + 0.5 + Math.random() * (bounds.maxY - bounds.minY - 1),
+            z: bounds.minZ + Math.random() * (bounds.maxZ - bounds.minZ)
+          };
+          f.setAttribute('position', newPos);
+        }
+        
+        // Réactiver le collider physics si présent
+        if (f.components && f.components['dynamic-body']) {
+          f.components['dynamic-body'].data.type = 'dynamic';
+        }
+      });
+      
+      console.log('🔄 Game reset - ' + fishTargets.length + ' poissons réinitialisés et repositionnés');
     },
 
     isGameActive: function () { return gameActive; },

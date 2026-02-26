@@ -580,9 +580,9 @@ AFRAME.registerComponent('grab-manager', {
         }
       } catch (e) {}
 
-      // hide and remove the fish
+      // hide the fish (keep it in DOM for reset)
       otherEl.setAttribute('visible', 'false');
-      setTimeout(() => { if (otherEl.parentNode) otherEl.parentNode.removeChild(otherEl); }, 80);
+      otherEl.dataset.caught = 'true'; // Mark as caught for reset
 
       // gentle slow-down on spear if physics body present
       try {
