@@ -18,7 +18,7 @@ export default defineConfig({
     build: {
         rollupOptions: {
             input: {
-                main: 'landing.html',
+                main: 'index.html',
                 game: 'game.html'
             }
         }
