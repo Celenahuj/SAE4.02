@@ -1,7 +1,7 @@
 // Système de gestion du classement avec localStorage
 (function () {
   const LEADERBOARD_KEY = 'spearfisher_leaderboard';
-  const MAX_LEADERBOARD_SIZE = 10;
+  const MAX_LEADERBOARD_SIZE = 8;
   let currentPlayerName = '';
 
   // Fonction pour charger le classement depuis localStorage
@@ -58,7 +58,7 @@
     // Trier par score décroissant
     leaderboard.sort((a, b) => b.score - a.score);
 
-    // Garder seulement les 10 meilleurs
+    // Garder seulement les 8 meilleurs
     const topLeaderboard = leaderboard.slice(0, MAX_LEADERBOARD_SIZE);
 
     // Sauvegarder
@@ -81,7 +81,7 @@
 
     if (leaderboard.length === 0) {
       const row = document.createElement('tr');
-      row.innerHTML = `<td colspan="3" style="text-align:center;color:#999;">Aucun score enregistré</td>`;
+      row.innerHTML = `<td colspan="3" style="text-align:center;color:#999;">No scores recorded</td>`;
       tableBody.appendChild(row);
       return;
     }
@@ -139,7 +139,7 @@
 
     if (leaderboard.length === 0) {
       const noDataText = document.createElement('a-text');
-      noDataText.setAttribute('value', 'Aucun score enregistré');
+      noDataText.setAttribute('value', 'No scores recorded');
       noDataText.setAttribute('align', 'center');
       noDataText.setAttribute('color', '#999999');
       noDataText.setAttribute('width', '1.5');
@@ -167,7 +167,7 @@
     leaderboardContainer.appendChild(header1);
 
     const header2 = document.createElement('a-text');
-    header2.setAttribute('value', 'Joueur');
+    header2.setAttribute('value', 'Player');
     header2.setAttribute('align', 'left');
     header2.setAttribute('color', '#FFD700');
     header2.setAttribute('width', '1');
@@ -283,7 +283,7 @@
         const name = playerNameInput.value.trim();
         
         if (name === '') {
-          alert('Veuillez entrer votre nom !');
+          alert('Please enter your name!');
           playerNameInput.focus();
           return;
         }
@@ -326,11 +326,11 @@
         const endScreen3D = document.querySelector('#end-screen-3d');
         if (endScreen3D) {
           // Changer le titre
-          const title = endScreen3D.querySelector('a-text[value*="FIN DE LA PARTIE"]');
-          if (title) title.setAttribute('value', '🏆 CLASSEMENT 🏆');
+          const title = endScreen3D.querySelector('a-text[value*="GAME OVER"]');
+          if (title) title.setAttribute('value', '🏆 LEADERBOARD 🏆');
           
-          const subtitle = endScreen3D.querySelector('a-text[value*="Poissons"]');
-          if (subtitle) subtitle.setAttribute('value', 'Top 10 Joueurs');
+          const subtitle = endScreen3D.querySelector('a-text[value*="Fishes"]');
+          if (subtitle) subtitle.setAttribute('value', 'Top 8 Players');
 
           // Afficher le classement à la place du tableau de scores
           displayLeaderboard3D();

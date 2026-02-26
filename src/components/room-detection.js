@@ -5,9 +5,9 @@
 // ============================================
 AFRAME.registerComponent('room-detection', {
   schema: {
-    debug: { type: 'boolean', default: true },
+    debug: { type: 'boolean', default: false },
     scanDuration: { type: 'number', default: 15000 },
-    showPlanes: { type: 'boolean', default: true },
+    showPlanes: { type: 'boolean', default: false },
     continuousDetection: { type: 'boolean', default: true },
     // Si true, autorise l'émission automatique de données de test (development only)
     enableTest: { type: 'boolean', default: false }
@@ -354,11 +354,13 @@ AFRAME.registerComponent('room-detection', {
     const pose = data.floorPose;
     const height = data.height;
     
-    console.log('📦 Création visualisation EXACTE basée sur polygone du sol (', polygon.length, 'vertices)');
+    if (this.data.debug) {
+      console.log('📦 Création visualisation EXACTE basée sur polygone du sol (', polygon.length, 'vertices)');
+    }
     
-    // Créer une entité pour contenir la visualisation
-    const container = document.createElement('a-entity');
-    container.setAttribute('id', 'spawn-zone-bounds');
+    // Créer une entité pour contenir la visualisation (seulement si debug activé)
+    const container = this.data.debug ? document.createElement('a-entity') : null;
+    if (container) container.setAttribute('id', 'spawn-zone-bounds');
     
     // Matrice de transformation du sol
     const matrix = new THREE.Matrix4();
@@ -377,56 +379,58 @@ AFRAME.registerComponent('room-detection', {
       new THREE.Vector3(p.x, p.y + height, p.z)
     );
     
-    // 3. Dessiner les contours horizontaux (sol et plafond) EN ROUGE (moins opaques)
-    this.drawPolygonLoop(bottomPoints, container, '#ff0000', 0.5);
-    this.drawPolygonLoop(topPoints, container, '#ff0000', 0.5);
-    
-    // 4. Dessiner les arêtes verticales (coins) EN ROUGE
-    for (let i = 0; i < bottomPoints.length; i++) {
-      const lineGeom = new THREE.BufferGeometry().setFromPoints([
-        bottomPoints[i],
-        topPoints[i]
-      ]);
-      const lineMat = new THREE.LineBasicMaterial({ 
-        color: 0xff0000, 
-        transparent: true, 
-        opacity: 0.6,
-        linewidth: 2
+    // 3. Dessiner les contours horizontaux (sol et plafond) EN ROUGE (seulement si debug)
+    if (this.data.debug) {
+      this.drawPolygonLoop(bottomPoints, container, '#ff0000', 0.5);
+      this.drawPolygonLoop(topPoints, container, '#ff0000', 0.5);
+      
+      // 4. Dessiner les arêtes verticales (coins) EN ROUGE
+      for (let i = 0; i < bottomPoints.length; i++) {
+        const lineGeom = new THREE.BufferGeometry().setFromPoints([
+          bottomPoints[i],
+          topPoints[i]
+        ]);
+        const lineMat = new THREE.LineBasicMaterial({ 
+          color: 0xff0000, 
+          transparent: true, 
+          opacity: 0.6,
+          linewidth: 2
+        });
+        const line = new THREE.Line(lineGeom, lineMat);
+        this.el.sceneEl.object3D.add(line);
+        this.planeMeshes.push(line);
+      }
+      
+      // 5. Créer une surface semi-transparente pour le sol
+      const shape = new THREE.Shape();
+      shape.moveTo(polygon[0].x, polygon[0].z);
+      for (let i = 1; i < polygon.length; i++) {
+        shape.lineTo(polygon[i].x, polygon[i].z);
+      }
+      shape.closePath();
+      
+      const shapeGeom = new THREE.ShapeGeometry(shape);
+      shapeGeom.rotateX(-Math.PI / 2);
+      
+      const shapeMat = new THREE.MeshBasicMaterial({
+        color: 0xff0000,
+        transparent: true,
+        opacity: 0.12,
+        side: THREE.DoubleSide,
+        depthWrite: false
       });
-      const line = new THREE.Line(lineGeom, lineMat);
-      this.el.sceneEl.object3D.add(line);
-      this.planeMeshes.push(line);
+      
+      const shapeMesh = new THREE.Mesh(shapeGeom, shapeMat);
+      shapeMesh.matrixAutoUpdate = false;
+      shapeMesh.matrix.copy(matrix);
+      
+      this.el.sceneEl.object3D.add(shapeMesh);
+      this.planeMeshes.push(shapeMesh);
+      
+      console.log('✅ Visualisation polygonale créée - suit EXACTEMENT le sol détecté');
+      
+      this.el.sceneEl.appendChild(container);
     }
-    
-    // 5. Créer une surface semi-transparente pour le sol
-    const shape = new THREE.Shape();
-    shape.moveTo(polygon[0].x, polygon[0].z);
-    for (let i = 1; i < polygon.length; i++) {
-      shape.lineTo(polygon[i].x, polygon[i].z);
-    }
-    shape.closePath();
-    
-    const shapeGeom = new THREE.ShapeGeometry(shape);
-    shapeGeom.rotateX(-Math.PI / 2);
-    
-    const shapeMat = new THREE.MeshBasicMaterial({
-      color: 0xff0000,
-      transparent: true,
-      opacity: 0.12,
-      side: THREE.DoubleSide,
-      depthWrite: false
-    });
-    
-    const shapeMesh = new THREE.Mesh(shapeGeom, shapeMat);
-    shapeMesh.matrixAutoUpdate = false;
-    shapeMesh.matrix.copy(matrix);
-    
-    this.el.sceneEl.object3D.add(shapeMesh);
-    this.planeMeshes.push(shapeMesh);
-    
-    console.log('✅ Visualisation polygonale créée - suit EXACTEMENT le sol détecté');
-    
-    this.el.sceneEl.appendChild(container);
   },
 
   drawPolygonLoop: function(points, container, color, opacity) {
@@ -444,6 +448,9 @@ AFRAME.registerComponent('room-detection', {
   },
 
   createStandardBox: function(data) {
+    // Ne créer la box de visualisation que si debug est activé
+    if (!this.data.debug) return;
+    
     // Box rectangulaire (MÊME ZONE que pour les collisions des poissons)
     const bounds = data.bounds || {};
     const centerX = (bounds.minX + bounds.maxX) / 2;
@@ -459,7 +466,7 @@ AFRAME.registerComponent('room-detection', {
     box.setAttribute('depth', depth);
     box.setAttribute('material', 'color: #ff0000; opacity: 0.12; transparent: true; wireframe: true; side: double');
     box.setAttribute('geometry', 'primitive: box');
-    box.setAttribute('visible', 'false');
+    box.setAttribute('visible', 'true');
     
     console.log('📦 ZONE ROUGE créée (bounds du sol) :');
     console.log(`   Position: (${centerX.toFixed(2)}, ${(data.floorY + data.height/2).toFixed(2)}, ${centerZ.toFixed(2)})`);
@@ -471,62 +478,80 @@ AFRAME.registerComponent('room-detection', {
   },
 
   createScanUI: function () {
-    // Scan information panel visible in VR
+    // Scan information panel visible in VR (style océanique cohérent avec nom/arme)
     this.scanPanel = document.createElement('a-entity');
     this.scanPanel.setAttribute('id', 'scan-panel');
     this.scanPanel.setAttribute('position', '0 1.5 -1.5');
     this.scanPanel.setAttribute('visible', 'false');
 
-    // Fond du panneau
+    // Fond du panneau (bleu océan comme écrans nom/arme)
     const background = document.createElement('a-plane');
-    background.setAttribute('width', '1.4');
-    background.setAttribute('height', '0.7');
-    background.setAttribute('color', '#000');
-    background.setAttribute('opacity', '0.85');
+    background.setAttribute('width', '1.0');
+    background.setAttribute('height', '0.35');
+    background.setAttribute('color', '#001e3c');
+    background.setAttribute('opacity', '0.95');
     background.setAttribute('shader', 'flat');
+    background.setAttribute('position', '0 0 -0.02');
     this.scanPanel.appendChild(background);
 
-    // Titre
+    // Bordures cyan/bleu (même style que les boutons)
+    const borderTop = document.createElement('a-box');
+    borderTop.setAttribute('color', '#00d4ff');
+    borderTop.setAttribute('width', '1.0');
+    borderTop.setAttribute('height', '0.01');
+    borderTop.setAttribute('depth', '0.01');
+    borderTop.setAttribute('position', '0 0.17 0');
+    this.scanPanel.appendChild(borderTop);
+
+    const borderBottom = document.createElement('a-box');
+    borderBottom.setAttribute('color', '#00d4ff');
+    borderBottom.setAttribute('width', '1.0');
+    borderBottom.setAttribute('height', '0.01');
+    borderBottom.setAttribute('depth', '0.01');
+    borderBottom.setAttribute('position', '0 -0.17 0');
+    this.scanPanel.appendChild(borderBottom);
+
+    const borderLeft = document.createElement('a-box');
+    borderLeft.setAttribute('color', '#00d4ff');
+    borderLeft.setAttribute('width', '0.01');
+    borderLeft.setAttribute('height', '0.33');
+    borderLeft.setAttribute('depth', '0.01');
+    borderLeft.setAttribute('position', '-0.495 0 0');
+    this.scanPanel.appendChild(borderLeft);
+
+    const borderRight = document.createElement('a-box');
+    borderRight.setAttribute('color', '#00d4ff');
+    borderRight.setAttribute('width', '0.01');
+    borderRight.setAttribute('height', '0.33');
+    borderRight.setAttribute('depth', '0.01');
+    borderRight.setAttribute('position', '0.495 0 0');
+    this.scanPanel.appendChild(borderRight);
+
+    // Titre avec gradient cyan (comme le titre "Spearfisher")
     this.scanTitle = document.createElement('a-text');
-    this.scanTitle.setAttribute('value', '🔍 SCANNING ROOM');
+    this.scanTitle.setAttribute('value', 'SCANNING ENVIRONMENT');
     this.scanTitle.setAttribute('align', 'center');
-    this.scanTitle.setAttribute('color', '#00ff00');
-    this.scanTitle.setAttribute('width', '2.2');
-    this.scanTitle.setAttribute('position', '0 0.22 0.01');
+    this.scanTitle.setAttribute('color', '#00ffcc');
+    this.scanTitle.setAttribute('width', '1.5');
+    this.scanTitle.setAttribute('position', '0 0.06 0.01');
+    this.scanTitle.setAttribute('font', 'roboto');
     this.scanPanel.appendChild(this.scanTitle);
 
-    // Texte d'instructions
-    this.scanText = document.createElement('a-text');
-    this.scanText.setAttribute('value', 'Look at surfaces\nPoint the controller at tables');
-    this.scanText.setAttribute('align', 'center');
-    this.scanText.setAttribute('color', '#ffffff');
-    this.scanText.setAttribute('width', '1.8');
-    this.scanText.setAttribute('position', '0 0.06 0.01');
-    this.scanPanel.appendChild(this.scanText);
-
-    // Compteur de surfaces
-    this.surfaceCount = document.createElement('a-text');
-    this.surfaceCount.setAttribute('value', 'Surfaces: 0');
-    this.surfaceCount.setAttribute('align', 'center');
-    this.surfaceCount.setAttribute('color', '#00ffff');
-    this.surfaceCount.setAttribute('width', '1.5');
-    this.surfaceCount.setAttribute('position', '0 -0.08 0.01');
-    this.scanPanel.appendChild(this.surfaceCount);
-
-    // Fond barre de progression
+    // Fond barre de progression (noir transparent)
     const progressBg = document.createElement('a-plane');
-    progressBg.setAttribute('width', '1.1');
-    progressBg.setAttribute('height', '0.05');
-    progressBg.setAttribute('color', '#333');
-    progressBg.setAttribute('position', '0 -0.26 0.01');
+    progressBg.setAttribute('width', '0.8');
+    progressBg.setAttribute('height', '0.04');
+    progressBg.setAttribute('color', '#000000');
+    progressBg.setAttribute('opacity', '0.6');
+    progressBg.setAttribute('position', '0 -0.08 0.01');
     this.scanPanel.appendChild(progressBg);
 
-    // Barre de progression
+    // Barre de progression cyan/bleu (comme les boutons)
     this.progressBar = document.createElement('a-plane');
     this.progressBar.setAttribute('width', '0.01');
-    this.progressBar.setAttribute('height', '0.05');
-    this.progressBar.setAttribute('color', '#00ff00');
-    this.progressBar.setAttribute('position', '-0.545 -0.26 0.02');
+    this.progressBar.setAttribute('height', '0.04');
+    this.progressBar.setAttribute('color', '#00d4ff');
+    this.progressBar.setAttribute('position', '-0.395 -0.08 0.02');
     this.scanPanel.appendChild(this.progressBar);
 
     this.el.sceneEl.appendChild(this.scanPanel);
@@ -630,8 +655,13 @@ AFRAME.registerComponent('room-detection', {
     this.startScan();
   },
 
-  // Créer un curseur visuel pour indiquer les surfaces détectées
+  // Créer un curseur visuel pour indiquer les surfaces détectées (seulement en mode debug)
   createScanCursor: function () {
+    if (!this.data.debug) {
+      this.cursorEl = null;
+      return;
+    }
+    
     this.cursorEl = document.createElement('a-entity');
     this.cursorEl.setAttribute('id', 'scan-cursor');
 
@@ -710,9 +740,9 @@ AFRAME.registerComponent('room-detection', {
     if (this.isScanning) {
       const elapsed = Date.now() - this.scanStartTime;
       const progress = Math.min(elapsed / this.data.scanDuration, 1);
-      const width = 1.1 * progress;
+      const width = 0.8 * progress;
       this.progressBar.setAttribute('width', Math.max(0.01, width));
-      this.progressBar.setAttribute('position', `${-0.55 + width / 2} -0.26 0.02`);
+      this.progressBar.setAttribute('position', `${-0.4 + width / 2} -0.08 0.02`);
     }
 
     // Détecter les plans et utiliser hit-test
@@ -1215,35 +1245,8 @@ AFRAME.registerComponent('room-detection', {
   },
 
   updateScanUI: function () {
-    const floorCount = this.floorPlanes.length;
-    const wallCount = this.wallPlanes.length;
-    const obstacleCount = this.obstaclePlanes.length;
-    const hitSurfaceCount = this.hitSurfaces.size;
-    const total = floorCount + wallCount + obstacleCount + this.ceilingPlanes.length;
-
-    // Compter les types d'obstacles
-    const obstacleTypes = {};
-    this.obstaclePlanes.forEach(({ data }) => {
-      const type = data.obstacleType || 'autre';
-      obstacleTypes[type] = (obstacleTypes[type] || 0) + 1;
-    });
-
-    this.surfaceCount.setAttribute('value',
-      `Sol: ${floorCount} | Murs: ${wallCount} | Objets: ${obstacleCount}`);
-
-    // Afficher plus de détails sur les obstacles
-    let details = `${total} surfaces + ${hitSurfaceCount} points`;
-    if (obstacleCount > 0) {
-      const typesList = Object.entries(obstacleTypes)
-        .map(([type, count]) => `${count} ${type.split('/')[0]}`)
-        .slice(0, 2)
-        .join(', ');
-      details += `\n${typesList}`;
-    } else {
-      details += `\nContinuez à scanner...`;
-    }
-
-    this.scanText.setAttribute('value', details);
+    // UI simplifiée - pas besoin d'afficher les détails à l'utilisateur
+    // Les infos sont toujours loguées en console pour le debug
   },
 
   clearPlaneVisuals: function () {
@@ -1283,10 +1286,8 @@ AFRAME.registerComponent('room-detection', {
     }
 
     // Mettre à jour l'UI
-    this.scanTitle.setAttribute('value', '✅ SCAN COMPLETE');
-    this.scanTitle.setAttribute('color', '#00ff00');
-    this.scanText.setAttribute('value', `${totalPlanes} surfaces\nAdapting water...`);
-    this.progressBar.setAttribute('color', '#00ff00');
+    this.scanTitle.setAttribute('value', '✅ COMPLETE');
+    this.progressBar.setAttribute('color', '#00ffcc');
 
     // CALCUL AMÉLIORÉ : Utiliser le sol le plus grand pour définir la zone
     let roomData = null;
