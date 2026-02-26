@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spearfisher - Plongez dans l'aventure VR</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+      background: linear-gradient(180deg, #001e3c 0%, #003d66 50%, #005a8c 100%);
+      color: white;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    /* Animation des bulles en arrière-plan */
+    .bubble {
+      position: absolute;
+      bottom: -100px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      animation: rise 10s infinite ease-in;
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+    }
+
+    @keyframes rise {
+      0% {
+        bottom: -100px;
+        opacity: 0;
+      }
+      10% {
+        opacity: 1;
+      }
+      90% {
+        opacity: 1;
+      }
+      100% {
+        bottom: 110vh;
+        opacity: 0;
+      }
+    }
+
+    .bubble:nth-child(1) { left: 10%; width: 60px; height: 60px; animation-delay: 0s; animation-duration: 8s; }
+    .bubble:nth-child(2) { left: 25%; width: 40px; height: 40px; animation-delay: 2s; animation-duration: 10s; }
+    .bubble:nth-child(3) { left: 45%; width: 80px; height: 80px; animation-delay: 4s; animation-duration: 12s; }
+    .bubble:nth-child(4) { left: 65%; width: 50px; height: 50px; animation-delay: 1s; animation-duration: 9s; }
+    .bubble:nth-child(5) { left: 80%; width: 70px; height: 70px; animation-delay: 3s; animation-duration: 11s; }
+    .bubble:nth-child(6) { left: 90%; width: 45px; height: 45px; animation-delay: 5s; animation-duration: 10s; }
+    .bubble:nth-child(7) { left: 35%; width: 55px; height: 55px; animation-delay: 6s; animation-duration: 13s; }
+    .bubble:nth-child(8) { left: 55%; width: 35px; height: 35px; animation-delay: 2.5s; animation-duration: 9s; }
+
+    /* Conteneur principal */
+    .landing-container {
+      text-align: center;
+      z-index: 100;
+      padding: 60px 40px;
+      max-width: 900px;
+      animation: fadeIn 1.5s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .game-logo {
+      font-size: 6rem;
+      margin-bottom: 20px;
+      text-shadow: 0 0 40px rgba(0, 212, 255, 0.9), 0 0 80px rgba(0, 212, 255, 0.5);
+      animation: pulse 3s ease-in-out infinite;
+      filter: drop-shadow(0 10px 30px rgba(0, 212, 255, 0.4));
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.05);
+      }
+    }
+
+    .game-title {
+      font-size: 5rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, #00ffcc 0%, #00d4ff 50%, #0099ff 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 15px;
+      letter-spacing: 8px;
+      filter: drop-shadow(0 0 20px rgba(0, 212, 255, 0.6));
+      text-transform: uppercase;
+    }
+
+    .game-subtitle {
+      font-size: 1.8rem;
+      color: #c5efff;
+      margin-bottom: 50px;
+      font-weight: 300;
+      letter-spacing: 2px;
+      text-shadow: 0 2px 10px rgba(0, 212, 255, 0.3);
+    }
+
+    .game-description {
+      font-size: 1.3rem;
+      line-height: 2;
+      color: rgba(255, 255, 255, 0.85);
+      margin-bottom: 60px;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+      font-weight: 300;
+    }
+
+    .cta-button {
+      padding: 25px 60px;
+      font-size: 1.4rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #00ffcc 0%, #00d4ff 50%, #0099ff 100%);
+      color: #001e3c;
+      border: none;
+      border-radius: 60px;
+      cursor: pointer;
+      transition: all 0.4s ease;
+      box-shadow: 0 10px 40px rgba(0, 212, 255, 0.5), 0 0 60px rgba(0, 255, 204, 0.3);
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta-button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+      transition: left 0.5s ease;
+    }
+
+    .cta-button:hover::before {
+      left: 100%;
+    }
+
+    .cta-button:hover {
+      background: linear-gradient(135deg, #00ffcc 0%, #00d4ff 100%);
+      transform: translateY(-5px) scale(1.05);
+      box-shadow: 0 20px 60px rgba(0, 212, 255, 0.7), 0 0 80px rgba(0, 255, 204, 0.5);
+    }
+
+    .cta-button:active {
+      transform: translateY(-3px) scale(1.03);
+    }
+
+    .creator-credit {
+      margin-top: 60px;
+      font-size: 1.1rem;
+      color: rgba(255, 255, 255, 0.6);
+      font-weight: 300;
+      letter-spacing: 1px;
+    }
+
+    .creator-name {
+      color: #00ffcc;
+      font-weight: 600;
+      letter-spacing: 2px;
+    }
+
+    /* Vagues au bas de l'écran */
+    .wave {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 200%;
+      height: 150px;
+      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none"><path d="M0,60 C300,100 600,20 900,60 C1200,100 1500,20 1800,60 L1800,120 L0,120 Z" fill="rgba(0,100,150,0.3)"/></svg>') repeat-x;
+      animation: wave 10s linear infinite;
+      opacity: 0.5;
+    }
+
+    .wave:nth-child(2) {
+      bottom: 10px;
+      opacity: 0.3;
+      animation-duration: 15s;
+      animation-direction: reverse;
+    }
+
+    @keyframes wave {
+      0% {
+        transform: translateX(0);
+      }
+      100% {
+        transform: translateX(-50%);
+      }
+    }
+
+    @media (max-width: 768px) {
+      .game-title {
+        font-size: 2.5rem;
+      }
+      .game-logo {
+        font-size: 3rem;
+      }
+      .game-description {
+        font-size: 1rem;
+      }
+      .features {
+        flex-direction: column;
+        gap: 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Bulles animées -->
+  <div class="bubble"></div>
+  <div class="bubble"></div>
+  <div class="bubble"></div>
+  <div class="bubble"></div>
+  <div class="bubble"></div>
+  <div class="bubble"></div>
+  <div class="bubble"></div>
+  <div class="bubble"></div>
+
+  <!-- Vagues -->
+  <div class="wave"></div>
+  <div class="wave"></div>
+
+  <!-- Conteneur principal -->
+  <div class="landing-container">
+    <div class="game-logo">🔱</div>
+    <h1 class="game-title">SPEARFISHER</h1>
+    <p class="game-subtitle">Plongez dans l'aventure en réalité virtuelle</p>
+    
+    <p class="game-description">
+      Équipez-vous de votre harpon et partez à la chasse aux poissons dans un environnement 
+      sous-marin immersif en réalité étendue. Attrapez les bonnes cibles, évitez les erreurs, 
+      et grimpez au sommet du classement !
+    </p>
+
+    <button class="cta-button" onclick="window.location.href='index.html'">
+      Commencer l'aventure
+    </button>
+
+    <div class="creator-credit">
+      Créé par <span class="creator-name">Céléna Hujol</span> | SAE 4.02
+    </div>
+  </div>
+
+  <script>
+    // Animation de particules supplémentaires
+    document.addEventListener('mousemove', (e) => {
+      const x = e.clientX / window.innerWidth;
+      const y = e.clientY / window.innerHeight;
+      document.querySelector('.landing-container').style.transform = 
+        `perspective(1000px) rotateY(${(x - 0.5) * 5}deg) rotateX(${(y - 0.5) * -5}deg)`;
+    });
+  </script>
+</body>
+</html>
