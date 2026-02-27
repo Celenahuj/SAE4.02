@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
         "dev": "vite --host --open /index.html",
-    "build": "vite build",
+    "build": "vite build --base=/SAE4.02/",
     "preview": "vite preview",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

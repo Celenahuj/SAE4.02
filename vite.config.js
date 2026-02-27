@@ -2,7 +2,6 @@ import { defineConfig } from 'vite';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 
 export default defineConfig({
-    base: '/SAE4.02/', //  <-- Important pour GitHub Pages
     plugins: [
         basicSsl() // Génère automatiquement un certificat SSL auto-signé
     ],
