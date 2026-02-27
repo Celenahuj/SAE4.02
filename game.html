@@ -5,27 +5,27 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Spearfisher - SAE 4.02</title>
-  <link rel="stylesheet" href="/SAE4.02/src/styles/style.css">
 
   <!-- Importation d'A-Frame et des extensions nécessaires -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-  <script src="/SAE4.02/src/utils/compatibility-shims.js"></script>
+  <script src="src/utils/compatibility-shims.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@4.0.1/dist/aframe-physics-system.min.js"></script>
 
   <!-- Importation des composants -->
-  <script src="/SAE4.02/src/components/water-effect.js"></script>
-  <script src="/SAE4.02/src/components/water-adapter.js"></script>
-  <script src="/SAE4.02/src/components/grab-manager.js"></script>
-  <script src="/SAE4.02/src/components/bubble-spawner.js"></script>
-  <script src="/SAE4.02/src/components/fish-rotator.js"></script>
-  <script src="/SAE4.02/src/components/realistic-swim.js"></script>
+  <script src="src/components/water-effect.js"></script>
+  <script src="src/components/water-adapter.js"></script>
+  <script src="src/components/grab-manager.js"></script>
+  <script src="src/components/bubble-spawner.js"></script>
+  <script src="src/components/fish-rotator.js"></script>
+  <script src="src/components/realistic-swim.js"></script>
 
-  <script src="/SAE4.02/src/components/fish-spawner.js"></script>
-  <script src="/SAE4.02/src/components/room-detection.js"></script>
-  <script src="/SAE4.02/src/systems/game-timer.js"></script>
-  <script src="/SAE4.02/src/systems/leaderboard-manager.js"></script>
-  <script src="/SAE4.02/src/systems/weapon-manager.js"></script>
+  <script src="src/components/fish-spawner.js"></script>
+  <script src="src/components/room-detection.js"></script>
+  <script src="src/systems/game-timer.js"></script>
+  <script src="src/systems/leaderboard-manager.js"></script>
+  <script src="src/systems/weapon-manager.js"></script>
+  <link rel="stylesheet" crossorigin href="/SAE4.02/assets/game-CA9h7GGm.css">
 </head>
 
 <body>
@@ -123,19 +123,19 @@
     renderer="colorManagement: true; alpha: true; antialias: true; sortTransparentObjects: true">
 
     <a-assets>
-      <a-asset-item id="spear-model" src="/SAE4.02/assets/models/stylized_low-poly_spear.glb"></a-asset-item>
+      <a-asset-item id="spear-model" src="assets/models/stylized_low-poly_spear.glb"></a-asset-item>
       <!-- Modèles d'armes additionnels -->
-      <a-asset-item id="trident-model" src="/SAE4.02/assets/models/trident-2.glb"></a-asset-item>
-      <a-asset-item id="harpoon-model" src="/SAE4.02/assets/models/stylized_low-poly_spear.glb"></a-asset-item>
+      <a-asset-item id="trident-model" src="assets/models/trident-2.glb"></a-asset-item>
+      <a-asset-item id="harpoon-model" src="assets/models/stylized_low-poly_spear.glb"></a-asset-item>
       
-      <a-asset-item id="goldfish" src="/SAE4.02/assets/models/Goldfish.glb"></a-asset-item>
-      <a-asset-item id="piranha" src="/SAE4.02/assets/models/Piranha.glb"></a-asset-item>
-      <a-asset-item id="thon" src="/SAE4.02/assets/models/thon.glb"></a-asset-item>
-      <a-asset-item id="thon_bleu" src="/SAE4.02/assets/models/thon_bleu.glb"></a-asset-item>
-      <a-asset-item id="starfish" src="/SAE4.02/assets/models/Starfish.glb"></a-asset-item>
+      <a-asset-item id="goldfish" src="assets/models/Goldfish.glb"></a-asset-item>
+      <a-asset-item id="piranha" src="assets/models/Piranha.glb"></a-asset-item>
+      <a-asset-item id="thon" src="assets/models/thon.glb"></a-asset-item>
+      <a-asset-item id="thon_bleu" src="assets/models/thon_bleu.glb"></a-asset-item>
+      <a-asset-item id="starfish" src="assets/models/Starfish.glb"></a-asset-item>
       
       <!-- Musique de fond -->
-      <audio id="bg-music" src="/SAE4.02/assets/blackbox-black-box-drum-drum-drum-14105.mp3" preload="auto"></audio>
+      <audio id="bg-music" src="/SAE4.02/assets/blackbox-black-box-drum-drum-drum-14105-qe-hJNaU.mp3" preload="auto"></audio>
     </a-assets>
 
     <!-- Musique de fond (démarre quand le jeu commence) -->
@@ -277,7 +277,7 @@
 
   </a-scene>
 
-  <script src="/SAE4.02/src/systems/game-manager.js"></script>
+  <script src="src/systems/game-manager.js"></script>
 </body>
 
 </html>
